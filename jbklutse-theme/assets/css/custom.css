@@ -1,0 +1,302 @@
+/* ================================================
+   JBKlutse Tech Theme - Custom Styles
+   Lightweight, modern, performance-focused
+   ================================================ */
+
+/* --- Base & Reset --- */
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+img {
+	max-width: 100%;
+	height: auto;
+	display: block;
+}
+
+/* --- Smooth scrolling --- */
+html {
+	scroll-behavior: smooth;
+	-webkit-text-size-adjust: 100%;
+}
+
+body {
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	overflow-x: hidden;
+}
+
+/* --- Post Cards --- */
+.jbk-post-card {
+	transition: transform 0.2s ease, box-shadow 0.2s ease;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+	overflow: hidden;
+}
+
+.jbk-post-card:hover {
+	transform: translateY(-3px);
+	box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.jbk-post-card .wp-block-post-featured-image {
+	overflow: hidden;
+}
+
+.jbk-post-card .wp-block-post-featured-image img {
+	transition: transform 0.3s ease;
+	object-fit: cover;
+	width: 100%;
+	aspect-ratio: 16 / 10;
+}
+
+.jbk-post-card:hover .wp-block-post-featured-image img {
+	transform: scale(1.04);
+}
+
+/* --- Hero Post --- */
+.jbk-hero-post {
+	position: relative;
+	overflow: hidden;
+}
+
+.jbk-hero-post .wp-block-post-featured-image img {
+	width: 100%;
+	aspect-ratio: 21 / 9;
+	object-fit: cover;
+}
+
+/* --- Category badges --- */
+.wp-block-post-terms a {
+	text-decoration: none;
+}
+
+.wp-block-post-terms a:hover {
+	opacity: 0.8;
+}
+
+/* --- Article content typography --- */
+.jbk-article-content p {
+	line-height: 1.8;
+	margin-bottom: 1.25rem;
+}
+
+.jbk-article-content h2 {
+	margin-top: 2.5rem;
+	margin-bottom: 0.75rem;
+}
+
+.jbk-article-content h3 {
+	margin-top: 2rem;
+	margin-bottom: 0.5rem;
+}
+
+.jbk-article-content ul,
+.jbk-article-content ol {
+	padding-left: 1.5rem;
+	margin-bottom: 1.25rem;
+}
+
+.jbk-article-content li {
+	margin-bottom: 0.5rem;
+	line-height: 1.7;
+}
+
+.jbk-article-content blockquote {
+	border-left: 4px solid var(--wp--preset--color--secondary);
+	padding: 1rem 1.5rem;
+	margin: 1.5rem 0;
+	background: var(--wp--preset--color--surface);
+	border-radius: 0 8px 8px 0;
+	font-style: italic;
+}
+
+.jbk-article-content pre {
+	border-radius: 8px;
+	overflow-x: auto;
+}
+
+.jbk-article-content code:not(pre code) {
+	background: #f0f0f5;
+	padding: 0.15em 0.4em;
+	border-radius: 4px;
+	font-size: 0.875em;
+	color: var(--wp--preset--color--secondary);
+}
+
+.jbk-article-content figure {
+	margin: 1.5rem 0;
+}
+
+.jbk-article-content figcaption {
+	font-size: 0.8125rem;
+	color: var(--wp--preset--color--muted);
+	text-align: center;
+	margin-top: 0.5rem;
+}
+
+/* --- Navigation --- */
+.wp-block-navigation__responsive-container.is-menu-open {
+	padding: 2rem;
+}
+
+.wp-block-navigation__responsive-container-open {
+	color: #ffffff;
+}
+
+/* --- Sticky header effect --- */
+.jbk-sticky-header {
+	position: sticky;
+	top: 0;
+	z-index: 100;
+	transition: box-shadow 0.2s ease;
+}
+
+.jbk-sticky-header.scrolled {
+	box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+}
+
+/* --- Search form --- */
+.wp-block-search__inside-wrapper {
+	border-radius: 8px;
+	overflow: hidden;
+	border: 1px solid var(--wp--preset--color--border);
+}
+
+.wp-block-search__input {
+	border: none;
+	padding: 0.75rem 1rem;
+	font-size: 0.9375rem;
+}
+
+.wp-block-search__button {
+	background: var(--wp--preset--color--secondary);
+	color: #ffffff;
+	border: none;
+	padding: 0.75rem 1.5rem;
+	font-weight: 600;
+	cursor: pointer;
+	transition: background 0.2s ease;
+}
+
+.wp-block-search__button:hover {
+	background: var(--wp--preset--color--primary);
+}
+
+/* --- Pagination --- */
+.wp-block-query-pagination {
+	gap: 0.5rem;
+}
+
+.wp-block-query-pagination-numbers .page-numbers {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 2.25rem;
+	height: 2.25rem;
+	border-radius: 6px;
+	text-decoration: none;
+	font-size: 0.875rem;
+	font-weight: 500;
+	color: var(--wp--preset--color--text);
+	transition: all 0.2s ease;
+}
+
+.wp-block-query-pagination-numbers .page-numbers:hover,
+.wp-block-query-pagination-numbers .page-numbers.current {
+	background: var(--wp--preset--color--secondary);
+	color: #ffffff;
+}
+
+/* --- Comments --- */
+.wp-block-post-comments-form .comment-form input,
+.wp-block-post-comments-form .comment-form textarea {
+	border: 1px solid var(--wp--preset--color--border);
+	border-radius: 8px;
+	padding: 0.75rem 1rem;
+	font-family: inherit;
+	font-size: 0.9375rem;
+	width: 100%;
+}
+
+.wp-block-post-comments-form .comment-form input:focus,
+.wp-block-post-comments-form .comment-form textarea:focus {
+	outline: none;
+	border-color: var(--wp--preset--color--secondary);
+	box-shadow: 0 0 0 2px rgba(233, 69, 96, 0.15);
+}
+
+/* --- Social links --- */
+.wp-block-social-links .wp-social-link a {
+	transition: opacity 0.2s ease;
+}
+
+.wp-block-social-links .wp-social-link a:hover {
+	opacity: 0.7;
+}
+
+/* --- Footer navigation --- */
+footer .wp-block-navigation a {
+	text-decoration: none;
+}
+
+footer .wp-block-navigation a:hover {
+	color: var(--wp--preset--color--surface) !important;
+}
+
+/* --- Utility classes --- */
+.jbk-accent-border {
+	border-bottom: 3px solid var(--wp--preset--color--secondary);
+}
+
+/* --- Selection color --- */
+::selection {
+	background: var(--wp--preset--color--secondary);
+	color: #ffffff;
+}
+
+/* --- Focus visible --- */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible {
+	outline: 2px solid var(--wp--preset--color--secondary);
+	outline-offset: 2px;
+}
+
+/* --- Responsive --- */
+@media (max-width: 781px) {
+	.wp-block-post-template.is-layout-grid {
+		grid-template-columns: repeat(2, 1fr) !important;
+	}
+
+	.jbk-hero-post .wp-block-post-featured-image img {
+		aspect-ratio: 16 / 9;
+	}
+}
+
+@media (max-width: 600px) {
+	.wp-block-post-template.is-layout-grid {
+		grid-template-columns: 1fr !important;
+	}
+
+	.wp-block-columns {
+		flex-direction: column;
+	}
+}
+
+/* --- Print styles --- */
+@media print {
+	header,
+	footer,
+	.wp-block-navigation,
+	.wp-block-search,
+	.wp-block-query-pagination {
+		display: none !important;
+	}
+
+	body {
+		font-size: 12pt;
+		line-height: 1.5;
+	}
+}
