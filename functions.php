@@ -465,12 +465,15 @@ function jbklutse_block_spam_comment( $commentdata ) {
 		wp_die( 'Spam detected.', 'Comment Blocked', array( 'back_link' => true ) );
 	}
 
-	// --- Time-trap: reject if submitted in under 3 seconds ---
-	if ( isset( $_POST['jbk_ts'] ) ) {
-		$elapsed = time() - absint( $_POST['jbk_ts'] );
-		if ( $elapsed < 3 ) {
-			wp_die( 'You submitted too fast. Please go back and try again.', 'Comment Blocked', array( 'back_link' => true ) );
-		}
+	// --- Require honeypot field exists (blocks direct POST bots) ---
+	if ( ! isset( $_POST['jbk_ts'] ) ) {
+		wp_die( 'Invalid comment submission.', 'Comment Blocked', array( 'back_link' => true ) );
+	}
+
+	// --- Time-trap: reject if submitted in under 5 seconds ---
+	$elapsed = time() - absint( $_POST['jbk_ts'] );
+	if ( $elapsed < 5 ) {
+		wp_die( 'You submitted too fast. Please go back and try again.', 'Comment Blocked', array( 'back_link' => true ) );
 	}
 
 	$author  = strtolower( $commentdata['comment_author'] ?? '' );
@@ -488,6 +491,9 @@ function jbklutse_block_spam_comment( $commentdata ) {
 		'casino online', 'sports betting', 'crypto trading',
 		'buy cheap', 'order now', 'click here', 'free trial',
 		'viagra', 'cialis', 'pharmacy online',
+		'life insurance', 'تنظيف', 'شركة', 'severek takip',
+		'teşekkür', 'yararlı', 'i came across a', 'helpful platform',
+		'give it a visit', 'packed with a lot',
 	);
 
 	$check_text = $author . ' ' . $content;
@@ -501,6 +507,8 @@ function jbklutse_block_spam_comment( $commentdata ) {
 	$spam_email_patterns = array(
 		'@example.com',
 		'@gcomadescertj',
+		'forum.fun',
+		'@kirisbyforum',
 	);
 	foreach ( $spam_email_patterns as $pattern ) {
 		if ( false !== strpos( $email, $pattern ) ) {
@@ -511,6 +519,23 @@ function jbklutse_block_spam_comment( $commentdata ) {
 	// --- Block comments that are just a URL ---
 	if ( filter_var( trim( $commentdata['comment_content'] ), FILTER_VALIDATE_URL ) ) {
 		wp_die( 'Comments that are only a link are not allowed.', 'Comment Blocked', array( 'back_link' => true ) );
+	}
+
+	// --- Block comments with 2+ links (common spam pattern) ---
+	$link_count = preg_match_all( '/<a\s|https?:\/\//i', $commentdata['comment_content'] );
+	if ( $link_count >= 2 ) {
+		wp_die( 'Too many links in your comment.', 'Comment Blocked', array( 'back_link' => true ) );
+	}
+
+	// --- Block very short generic comments (under 20 chars, no substance) ---
+	$stripped = trim( strip_tags( $commentdata['comment_content'] ) );
+	if ( strlen( $stripped ) < 20 ) {
+		wp_die( 'Please write a more detailed comment.', 'Comment Blocked', array( 'back_link' => true ) );
+	}
+
+	// --- Block non-Latin scripts in author name (Arabic, Cyrillic spam) ---
+	if ( preg_match( '/[\x{0600}-\x{06FF}\x{0400}-\x{04FF}]/u', $author ) ) {
+		wp_die( 'Your comment was flagged as spam.', 'Comment Blocked', array( 'back_link' => true ) );
 	}
 
 	return $commentdata;
