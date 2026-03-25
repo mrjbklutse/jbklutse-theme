@@ -417,6 +417,26 @@ function jbklutse_auto_toc( $content ) {
 add_filter( 'the_content', 'jbklutse_auto_toc', 5 );
 
 /* ───────────────────────────────────────────────────
+ *  Related Posts: filter by current post's categories
+ * ─────────────────────────────────────────────────── */
+function jbklutse_related_posts_query( $query, $block ) {
+	if ( ! is_singular( 'post' ) ) {
+		return $query;
+	}
+	// Target the Related Posts query (queryId 2) on single posts
+	if ( isset( $block->context['queryId'] ) && 2 === $block->context['queryId'] ) {
+		$cats = get_the_category();
+		if ( ! empty( $cats ) ) {
+			$cat_ids = wp_list_pluck( $cats, 'term_id' );
+			$query['category__in'] = $cat_ids;
+		}
+		$query['post__not_in'] = array( get_the_ID() );
+	}
+	return $query;
+}
+add_filter( 'query_loop_block_query_vars', 'jbklutse_related_posts_query', 10, 2 );
+
+/* ───────────────────────────────────────────────────
  *  Anti-Spam Comment Filter
  *  Honeypot field + keyword blacklist + time-trap
  * ─────────────────────────────────────────────────── */

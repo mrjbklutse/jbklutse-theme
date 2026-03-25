@@ -60,10 +60,7 @@
 	font-size: 0.875rem;
 }
 
-/* --- Fix: Remove "Category:" prefix on archive pages --- */
-.wp-block-query-title::first-word {
-	/* CSS can't target first word reliably, handled via PHP */
-}
+/* (dead rule removed — "Category:" prefix handled via PHP) */
 
 /* --- Base & Reset --- */
 *,
@@ -203,66 +200,7 @@ body {
 	max-width: 300px;
 }
 
-/* --- Table of Contents --- */
-.jbk-toc {
-	background: var(--wp--preset--color--surface);
-	border: 1px solid var(--wp--preset--color--border);
-	border-left: 4px solid var(--wp--preset--color--secondary);
-	border-radius: 0 8px 8px 0;
-	padding: 1.25rem 1.5rem;
-	margin: 1.5rem 0 2rem;
-}
-
-.jbk-toc-title {
-	font-size: 0.9375rem;
-	font-weight: 700;
-	color: var(--wp--preset--color--primary);
-	margin-bottom: 0.75rem;
-	cursor: pointer;
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
-}
-
-.jbk-toc-title::after {
-	content: '▾';
-	font-size: 0.75rem;
-	transition: transform 0.2s ease;
-}
-
-.jbk-toc.collapsed .jbk-toc-title::after {
-	transform: rotate(-90deg);
-}
-
-.jbk-toc.collapsed .jbk-toc-list {
-	display: none;
-}
-
-.jbk-toc-list {
-	list-style: none;
-	padding: 0;
-	margin: 0;
-}
-
-.jbk-toc-list li {
-	margin-bottom: 0.375rem;
-}
-
-.jbk-toc-list a {
-	font-size: 0.875rem;
-	color: var(--wp--preset--color--text);
-	text-decoration: none;
-	line-height: 1.5;
-	transition: color 0.2s ease;
-}
-
-.jbk-toc-list a:hover {
-	color: var(--wp--preset--color--secondary);
-}
-
-.jbk-toc-list .toc-h3 {
-	padding-left: 1rem;
-}
+/* (Duplicate TOC styles removed — primary TOC styles are at top of file) */
 
 /* --- Article content typography --- */
 .jbk-article-content p {
@@ -423,7 +361,7 @@ body {
 .wp-block-post-comments-form .comment-form textarea:focus {
 	outline: none;
 	border-color: var(--wp--preset--color--secondary);
-	box-shadow: 0 0 0 2px rgba(233, 69, 96, 0.15);
+	box-shadow: 0 0 0 2px rgba(0, 179, 179, 0.15);
 }
 
 /* --- Social links --- */

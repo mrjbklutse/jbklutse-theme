@@ -11,7 +11,7 @@
 		header.classList.add('jbk-sticky-header');
 
 		window.addEventListener('scroll', function () {
-			if (window.pageYOffset > 50) {
+			if (window.scrollY > 50) {
 				header.classList.add('scrolled');
 			} else {
 				header.classList.remove('scrolled');
@@ -27,7 +27,7 @@
 		if (target) {
 			e.preventDefault();
 			var offset = header ? header.offsetHeight + 16 : 16;
-			var top = target.getBoundingClientRect().top + window.pageYOffset - offset;
+			var top = target.getBoundingClientRect().top + window.scrollY - offset;
 			window.scrollTo({ top: top, behavior: 'smooth' });
 		}
 	});
