@@ -415,3 +415,84 @@ function jbklutse_auto_toc( $content ) {
 	return $content;
 }
 add_filter( 'the_content', 'jbklutse_auto_toc', 5 );
+
+/* ───────────────────────────────────────────────────
+ *  Anti-Spam Comment Filter
+ *  Honeypot field + keyword blacklist + time-trap
+ * ─────────────────────────────────────────────────── */
+
+// 1. Add a hidden honeypot field to the comment form
+function jbklutse_spam_honeypot_field( $fields ) {
+	$fields['jbk_hp'] = '<p class="jbk-hp-wrap" style="display:none !important;visibility:hidden;position:absolute;left:-9999px;">'
+		. '<label for="jbk_hp_field">Leave this empty</label>'
+		. '<input type="text" name="jbk_hp_field" id="jbk_hp_field" value="" tabindex="-1" autocomplete="off" />'
+		. '</p>';
+	$fields['jbk_ts'] = '<input type="hidden" name="jbk_ts" value="' . time() . '" />';
+	return $fields;
+}
+add_filter( 'comment_form_default_fields', 'jbklutse_spam_honeypot_field' );
+
+// 2. Validate comments before they're saved
+function jbklutse_block_spam_comment( $commentdata ) {
+
+	// Skip logged-in users / admins
+	if ( is_user_logged_in() ) {
+		return $commentdata;
+	}
+
+	// --- Honeypot check: bots fill hidden fields ---
+	if ( ! empty( $_POST['jbk_hp_field'] ) ) {
+		wp_die( 'Spam detected.', 'Comment Blocked', array( 'back_link' => true ) );
+	}
+
+	// --- Time-trap: reject if submitted in under 3 seconds ---
+	if ( isset( $_POST['jbk_ts'] ) ) {
+		$elapsed = time() - absint( $_POST['jbk_ts'] );
+		if ( $elapsed < 3 ) {
+			wp_die( 'You submitted too fast. Please go back and try again.', 'Comment Blocked', array( 'back_link' => true ) );
+		}
+	}
+
+	$author  = strtolower( $commentdata['comment_author'] ?? '' );
+	$email   = strtolower( $commentdata['comment_author_email'] ?? '' );
+	$content = strtolower( $commentdata['comment_content'] ?? '' );
+	$url     = strtolower( $commentdata['comment_author_url'] ?? '' );
+
+	// --- Keyword blacklist (author + content) ---
+	$spam_keywords = array(
+		'tank welding', 'tank fabrication', 'tank erection', 'tank jacking',
+		'tank lifting', 'tank construction', 'hydraulic lifting',
+		'welding tractor', 'welding equipment', 'welding system',
+		'lng tank', 'storage tank', 'bulk storage',
+		'cloud hosting', 'home insurance', 'payday loan', 'cbd oil',
+		'casino online', 'sports betting', 'crypto trading',
+		'buy cheap', 'order now', 'click here', 'free trial',
+		'viagra', 'cialis', 'pharmacy online',
+	);
+
+	$check_text = $author . ' ' . $content;
+	foreach ( $spam_keywords as $keyword ) {
+		if ( false !== strpos( $check_text, $keyword ) ) {
+			wp_die( 'Your comment was flagged as spam.', 'Comment Blocked', array( 'back_link' => true ) );
+		}
+	}
+
+	// --- Block disposable / suspicious email patterns ---
+	$spam_email_patterns = array(
+		'@example.com',
+		'@gcomadescertj',
+	);
+	foreach ( $spam_email_patterns as $pattern ) {
+		if ( false !== strpos( $email, $pattern ) ) {
+			wp_die( 'Your comment was flagged as spam.', 'Comment Blocked', array( 'back_link' => true ) );
+		}
+	}
+
+	// --- Block comments that are just a URL ---
+	if ( filter_var( trim( $commentdata['comment_content'] ), FILTER_VALIDATE_URL ) ) {
+		wp_die( 'Comments that are only a link are not allowed.', 'Comment Blocked', array( 'back_link' => true ) );
+	}
+
+	return $commentdata;
+}
+add_filter( 'preprocess_comment', 'jbklutse_block_spam_comment' );
