@@ -99,23 +99,10 @@ function jbk_pr_sitemap_exclude( $exclude, $post ) {
 }
 add_filter( 'rank_math/sitemap/exclude_post', 'jbk_pr_sitemap_exclude', 10, 2 );
 
-/**
- * Also exclude the press release CATEGORY ARCHIVE from the sitemap
- * (so /category/press-releases/ doesn't get indexed either).
- */
-function jbk_pr_sitemap_exclude_terms( $terms, $taxonomy ) {
-	if ( 'category' !== $taxonomy ) {
-		return $terms;
-	}
-	if ( ! is_array( $terms ) ) {
-		return $terms;
-	}
-	return array_filter( $terms, function ( $t ) {
-		$id = is_object( $t ) ? (int) $t->term_id : (int) $t;
-		return $id !== JBK_PRESS_RELEASE_CAT_ID;
-	} );
-}
-add_filter( 'rank_math/sitemap/terms', 'jbk_pr_sitemap_exclude_terms', 10, 2 );
+// Press-release category archive exclusion is handled via Rank Math's
+// `sitemap.exclude_terms` setting (rank-math-options-sitemap option), set
+// directly to "1850" on 2026-04-25. The old `rank_math/sitemap/terms`
+// filter no longer fires in current Rank Math versions.
 
 /* ────────────────────────────────────────────────────────────
  * 3. Add rel="nofollow" to outbound links pointing AT press releases

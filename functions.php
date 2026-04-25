@@ -555,6 +555,10 @@ require_once get_theme_file_path( 'inc/press-release-noindex.php' );
 // Distinguishes our original journalism from paid press releases at the data layer.
 require_once get_theme_file_path( 'inc/auto-tag-original-content.php' );
 
+// Force index, follow on /topics/ archives (except press-releases). Rank Math
+// defaults categories to noindex, which would kill the topical-authority hubs.
+require_once get_theme_file_path( 'inc/topic-archives-index.php' );
+
 // Expose Rank Math per-post meta to REST so the publishing pipeline can set
 // focus keyword, meta description, Pillar Content flag, social images, etc.
 require_once get_theme_file_path( 'inc/rank-math-rest.php' );
