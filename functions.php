@@ -541,3 +541,20 @@ function jbklutse_block_spam_comment( $commentdata ) {
 	return $commentdata;
 }
 add_filter( 'preprocess_comment', 'jbklutse_block_spam_comment' );
+
+/* ────────────────────────────────────────────────────────────
+ * Modular includes
+ * ──────────────────────────────────────────────────────────── */
+
+// Noindex + sitemap exclusion + link isolation for press releases (category 1850).
+// This is the single highest-leverage SEO change on the site — insulates our
+// ~160 original posts from the ~2,068 paid press releases in terms of domain signal.
+require_once get_theme_file_path( 'inc/press-release-noindex.php' );
+
+// Auto-tag original (non-PR) content with "newstex" (tag ID 1856) on publish.
+// Distinguishes our original journalism from paid press releases at the data layer.
+require_once get_theme_file_path( 'inc/auto-tag-original-content.php' );
+
+// Expose Rank Math per-post meta to REST so the publishing pipeline can set
+// focus keyword, meta description, Pillar Content flag, social images, etc.
+require_once get_theme_file_path( 'inc/rank-math-rest.php' );
