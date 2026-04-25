@@ -551,7 +551,7 @@ add_filter( 'preprocess_comment', 'jbklutse_block_spam_comment' );
 // ~160 original posts from the ~2,068 paid press releases in terms of domain signal.
 require_once get_theme_file_path( 'inc/press-release-noindex.php' );
 
-// Auto-tag original (non-PR) content with "newstex" (tag ID 1856) on publish.
+// Auto-tag original (non-PR) content with "newstex" (tag ID 1846) on publish.
 // Distinguishes our original journalism from paid press releases at the data layer.
 require_once get_theme_file_path( 'inc/auto-tag-original-content.php' );
 

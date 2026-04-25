@@ -3,7 +3,7 @@
  * Auto-Tag Original Content Module
  *
  * Every post JBKlutse publishes that is NOT a press release (category 1850)
- * gets tagged with "newstex" (tag ID 1856) on publish.
+ * gets tagged with "newstex" (tag ID 1846) on publish.
  *
  * Why: separates our original journalism from the ~2,068 paid press releases
  * at the data layer, so downstream workflows and archive queries can filter
@@ -31,7 +31,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 if ( ! defined( 'JBK_NEWSTEX_TAG_ID' ) ) {
-	define( 'JBK_NEWSTEX_TAG_ID', 1856 );
+	define( 'JBK_NEWSTEX_TAG_ID', 1846 );
 }
 
 /**
