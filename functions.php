@@ -562,3 +562,7 @@ require_once get_theme_file_path( 'inc/topic-archives-index.php' );
 // Expose Rank Math per-post meta to REST so the publishing pipeline can set
 // focus keyword, meta description, Pillar Content flag, social images, etc.
 require_once get_theme_file_path( 'inc/rank-math-rest.php' );
+
+// Trending news review pipeline: tokenized public preview URL +
+// /jbklutse/v1/send-review-email REST endpoint (uses wp_mail via wp-mail-smtp).
+require_once get_theme_file_path( 'inc/jbk-trending-review.php' );
