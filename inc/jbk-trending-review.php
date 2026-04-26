@@ -77,34 +77,74 @@ add_action( 'init', function () {
         exit;
     }
 
-    // Spoof status to 'publish' for this request only so themes render normally.
-    add_filter( 'the_posts', function ( $posts ) use ( $post_id ) {
-        foreach ( $posts as $p ) {
-            if ( $p->ID === $post_id ) {
-                $p->post_status = 'publish';
-            }
-        }
-        return $posts;
-    } );
+    // Render the post inline. Bypass WP main query completely — the theme's
+    // homepage template was ignoring our query manipulation. Instead we
+    // build a minimal full-page render using the_content filter so all
+    // WP plugins (Rank Math, embeds, image lazyload, etc.) still apply.
+    global $post, $wp_query;
+    $post = $post; // post object from earlier get_post()
+    setup_postdata( $post );
 
-    // Force WP to load this post as the main query.
-    add_action( 'pre_get_posts', function ( $q ) use ( $post_id ) {
-        if ( $q->is_main_query() ) {
-            $q->set( 'p', $post_id );
-            $q->set( 'post_status', [ 'draft', 'pending', 'private', 'publish' ] );
-        }
-    } );
+    // Build a synthetic main query so theme functions like is_single() work
+    $wp_query = new WP_Query( [ 'p' => $post_id, 'post_status' => 'any' ] );
+    $wp_query->is_single  = true;
+    $wp_query->is_singular = true;
+    $wp_query->is_home    = false;
+    $wp_query->is_front_page = false;
 
-    // Banner so the reviewer knows it's a preview, not a live post.
-    add_action( 'wp_body_open', function () use ( $post_id, $exp ) {
-        $remaining = max( 0, $exp - time() );
-        $hours     = round( $remaining / 3600, 1 );
-        echo '<div style="background:#1f2937;color:#fbbf24;padding:10px 16px;font-family:system-ui;font-size:13px;text-align:center;border-bottom:2px solid #fbbf24;">';
-        echo '🔍 <strong>JBKlutse Review Preview</strong> — Post #' . esc_html( (string) $post_id );
-        echo ' · Draft, not public · Link expires in ' . esc_html( (string) $hours ) . 'h · ';
-        echo 'Reply on Telegram with <strong>Approve</strong>, <strong>Suggest</strong>, or <strong>Reject</strong>.';
-        echo '</div>';
-    } );
+    // Render
+    nocache_headers();
+    status_header( 200 );
+
+    $featured_url = get_the_post_thumbnail_url( $post_id, 'large' );
+    $title        = get_the_title( $post_id );
+    $remaining    = max( 0, $exp - time() );
+    $hours        = round( $remaining / 3600, 1 );
+    $author       = get_the_author_meta( 'display_name', $post->post_author );
+    $word_count   = str_word_count( wp_strip_all_tags( $post->post_content ) );
+
+    echo '<!DOCTYPE html><html ' . get_language_attributes() . '><head>';
+    echo '<meta charset="' . esc_attr( get_bloginfo( 'charset' ) ) . '">';
+    echo '<meta name="viewport" content="width=device-width,initial-scale=1">';
+    echo '<meta name="robots" content="noindex,nofollow">';
+    echo '<title>[Preview] ' . esc_html( $title ) . ' &middot; JBKlutse</title>';
+    wp_head();
+    echo '<style>';
+    echo '.jbk-preview-banner{background:#1f2937;color:#fbbf24;padding:10px 16px;font-family:system-ui;font-size:13px;text-align:center;border-bottom:2px solid #fbbf24;position:sticky;top:0;z-index:9999;}';
+    echo '.jbk-preview-wrap{max-width:780px;margin:24px auto;padding:0 20px;font-family:system-ui,-apple-system,sans-serif;line-height:1.7;color:#1f2937;}';
+    echo '.jbk-preview-wrap h1{font-size:32px;line-height:1.25;margin:0 0 8px 0;color:#0f172a;}';
+    echo '.jbk-preview-wrap .meta{color:#6b7280;font-size:14px;margin-bottom:18px;}';
+    echo '.jbk-preview-wrap img.featured{width:100%;height:auto;border-radius:8px;margin:12px 0 24px;}';
+    echo '.jbk-preview-wrap h2{font-size:24px;margin:32px 0 12px;color:#0f172a;}';
+    echo '.jbk-preview-wrap h3{font-size:19px;margin:24px 0 8px;color:#0f172a;}';
+    echo '.jbk-preview-wrap p{margin:0 0 16px;}';
+    echo '.jbk-preview-wrap a{color:#0369a1;}';
+    echo '.jbk-preview-wrap figure{margin:20px 0;}';
+    echo '.jbk-preview-wrap figure img{width:100%;height:auto;border-radius:6px;}';
+    echo '.jbk-preview-wrap figcaption{color:#6b7280;font-size:13px;text-align:center;margin-top:6px;}';
+    echo '.jbk-preview-wrap .image-credit small{color:#9ca3af;font-size:12px;}';
+    echo '</style>';
+    echo '</head><body>';
+
+    echo '<div class="jbk-preview-banner">';
+    echo '🔍 <strong>JBKlutse Review Preview</strong> &middot; Post #' . esc_html( (string) $post_id );
+    echo ' &middot; Draft, not public &middot; Link expires in ' . esc_html( (string) $hours ) . 'h';
+    echo ' &middot; Action via Telegram or email after reading';
+    echo '</div>';
+
+    echo '<article class="jbk-preview-wrap">';
+    echo '<h1>' . esc_html( $title ) . '</h1>';
+    echo '<p class="meta">By ' . esc_html( $author ) . ' &middot; ~' . esc_html( (string) $word_count ) . ' words &middot; Status: <strong>' . esc_html( $post->post_status ) . '</strong></p>';
+    if ( $featured_url ) {
+        echo '<img class="featured" src="' . esc_url( $featured_url ) . '" alt="' . esc_attr( $title ) . '">';
+    }
+    echo apply_filters( 'the_content', $post->post_content );
+    echo '</article>';
+
+    wp_reset_postdata();
+    wp_footer();
+    echo '</body></html>';
+    exit;
 }, 1 );
 
 
