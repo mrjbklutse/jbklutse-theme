@@ -98,9 +98,19 @@ add_action( 'init', function () {
     $wp_query->is_home        = false;
     $wp_query->is_front_page  = false;
 
-    // Render
+    // Render — explicitly tell LiteSpeed not to cache this preview page,
+    // and add hard cache-control headers so browsers/proxies revalidate.
     nocache_headers();
     status_header( 200 );
+    if ( ! headers_sent() ) {
+        header( 'Cache-Control: no-store, no-cache, must-revalidate, max-age=0' );
+        header( 'Pragma: no-cache' );
+        header( 'Expires: 0' );
+        header( 'X-LiteSpeed-Cache-Control: no-cache' );
+    }
+    if ( function_exists( 'do_action' ) ) {
+        do_action( 'litespeed_control_set_nocache', 'jbk-preview-page' );
+    }
 
     $featured_url = get_the_post_thumbnail_url( $post_id, 'large' );
     $title        = get_the_title( $post_id );
