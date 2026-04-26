@@ -68,29 +68,35 @@ add_action( 'init', function () {
         wp_die( 'Invalid preview signature.', 'Preview', [ 'response' => 403 ] );
     }
 
-    $post = get_post( $post_id );
-    if ( ! $post ) {
+    $preview_post = get_post( $post_id );
+    if ( ! $preview_post ) {
         wp_die( 'Post not found.', 'Preview', [ 'response' => 404 ] );
     }
-    if ( ! in_array( $post->post_status, [ 'draft', 'pending', 'auto-draft', 'private' ], true ) ) {
+    if ( ! in_array( $preview_post->post_status, [ 'draft', 'pending', 'auto-draft', 'private' ], true ) ) {
         wp_redirect( get_permalink( $post_id ) );
         exit;
     }
 
-    // Render the post inline. Bypass WP main query completely — the theme's
-    // homepage template was ignoring our query manipulation. Instead we
-    // build a minimal full-page render using the_content filter so all
-    // WP plugins (Rank Math, embeds, image lazyload, etc.) still apply.
+    // Set the global $post so wp_head/wp_footer/the_content/Rank Math
+    // and theme hooks see a real post object instead of null.
     global $post, $wp_query;
-    $post = $post; // post object from earlier get_post()
+    $post = $preview_post;
     setup_postdata( $post );
 
     // Build a synthetic main query so theme functions like is_single() work
     $wp_query = new WP_Query( [ 'p' => $post_id, 'post_status' => 'any' ] );
-    $wp_query->is_single  = true;
-    $wp_query->is_singular = true;
-    $wp_query->is_home    = false;
-    $wp_query->is_front_page = false;
+    if ( ! $wp_query->have_posts() ) {
+        // Re-set the global since WP_Query above may have reset it.
+        $post = $preview_post;
+        setup_postdata( $post );
+    } else {
+        $post = $preview_post;
+        setup_postdata( $post );
+    }
+    $wp_query->is_single      = true;
+    $wp_query->is_singular    = true;
+    $wp_query->is_home        = false;
+    $wp_query->is_front_page  = false;
 
     // Render
     nocache_headers();
@@ -100,29 +106,36 @@ add_action( 'init', function () {
     $title        = get_the_title( $post_id );
     $remaining    = max( 0, $exp - time() );
     $hours        = round( $remaining / 3600, 1 );
-    $author       = get_the_author_meta( 'display_name', $post->post_author );
-    $word_count   = str_word_count( wp_strip_all_tags( $post->post_content ) );
+    $author       = get_the_author_meta( 'display_name', $preview_post->post_author );
+    $word_count   = str_word_count( wp_strip_all_tags( $preview_post->post_content ) );
+    $post_status  = $preview_post->post_status;
 
     echo '<!DOCTYPE html><html ' . get_language_attributes() . '><head>';
     echo '<meta charset="' . esc_attr( get_bloginfo( 'charset' ) ) . '">';
     echo '<meta name="viewport" content="width=device-width,initial-scale=1">';
     echo '<meta name="robots" content="noindex,nofollow">';
     echo '<title>[Preview] ' . esc_html( $title ) . ' &middot; JBKlutse</title>';
-    wp_head();
+    // Skip wp_head / wp_footer to avoid theme-hook noise that expects
+    // a fully-resolved main query environment. Render minimally instead.
     echo '<style>';
-    echo '.jbk-preview-banner{background:#1f2937;color:#fbbf24;padding:10px 16px;font-family:system-ui;font-size:13px;text-align:center;border-bottom:2px solid #fbbf24;position:sticky;top:0;z-index:9999;}';
-    echo '.jbk-preview-wrap{max-width:780px;margin:24px auto;padding:0 20px;font-family:system-ui,-apple-system,sans-serif;line-height:1.7;color:#1f2937;}';
-    echo '.jbk-preview-wrap h1{font-size:32px;line-height:1.25;margin:0 0 8px 0;color:#0f172a;}';
+    echo 'body{margin:0;background:#f9fafb;font-family:system-ui,-apple-system,sans-serif;color:#1f2937;}';
+    echo '.jbk-preview-banner{background:#1f2937;color:#fbbf24;padding:10px 16px;font-size:13px;text-align:center;border-bottom:2px solid #fbbf24;position:sticky;top:0;z-index:9999;}';
+    echo '.jbk-preview-wrap{max-width:780px;margin:0 auto;padding:24px 20px 80px;line-height:1.7;}';
+    echo '.jbk-preview-wrap h1{font-size:32px;line-height:1.25;margin:24px 0 8px 0;color:#0f172a;}';
     echo '.jbk-preview-wrap .meta{color:#6b7280;font-size:14px;margin-bottom:18px;}';
-    echo '.jbk-preview-wrap img.featured{width:100%;height:auto;border-radius:8px;margin:12px 0 24px;}';
+    echo '.jbk-preview-wrap img.featured{width:100%;height:auto;border-radius:8px;margin:12px 0 24px;display:block;}';
     echo '.jbk-preview-wrap h2{font-size:24px;margin:32px 0 12px;color:#0f172a;}';
     echo '.jbk-preview-wrap h3{font-size:19px;margin:24px 0 8px;color:#0f172a;}';
     echo '.jbk-preview-wrap p{margin:0 0 16px;}';
     echo '.jbk-preview-wrap a{color:#0369a1;}';
+    echo '.jbk-preview-wrap ul,.jbk-preview-wrap ol{margin:0 0 16px;padding-left:24px;}';
+    echo '.jbk-preview-wrap li{margin-bottom:6px;}';
     echo '.jbk-preview-wrap figure{margin:20px 0;}';
     echo '.jbk-preview-wrap figure img{width:100%;height:auto;border-radius:6px;}';
     echo '.jbk-preview-wrap figcaption{color:#6b7280;font-size:13px;text-align:center;margin-top:6px;}';
     echo '.jbk-preview-wrap .image-credit small{color:#9ca3af;font-size:12px;}';
+    echo '.jbk-preview-wrap blockquote{border-left:4px solid #fbbf24;margin:18px 0;padding:6px 16px;color:#374151;background:#fef9e7;}';
+    echo '.jbk-preview-wrap pre,.jbk-preview-wrap code{background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:14px;}';
     echo '</style>';
     echo '</head><body>';
 
@@ -134,15 +147,21 @@ add_action( 'init', function () {
 
     echo '<article class="jbk-preview-wrap">';
     echo '<h1>' . esc_html( $title ) . '</h1>';
-    echo '<p class="meta">By ' . esc_html( $author ) . ' &middot; ~' . esc_html( (string) $word_count ) . ' words &middot; Status: <strong>' . esc_html( $post->post_status ) . '</strong></p>';
+    echo '<p class="meta">By ' . esc_html( $author ) . ' &middot; ~' . esc_html( (string) $word_count ) . ' words &middot; Status: <strong>' . esc_html( $post_status ) . '</strong></p>';
     if ( $featured_url ) {
         echo '<img class="featured" src="' . esc_url( $featured_url ) . '" alt="' . esc_attr( $title ) . '">';
     }
-    echo apply_filters( 'the_content', $post->post_content );
+    // Run content through wpautop + standard filters but skip the_content
+    // hook (which fires plugins that may need full env). Use the minimum
+    // safe filters: shortcodes, autop, line breaks, smart quotes.
+    $content = $preview_post->post_content;
+    $content = do_shortcode( $content );
+    $content = wpautop( $content );
+    $content = wptexturize( $content );
+    $content = convert_smilies( $content );
+    echo $content;
     echo '</article>';
 
-    wp_reset_postdata();
-    wp_footer();
     echo '</body></html>';
     exit;
 }, 1 );
