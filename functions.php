@@ -571,3 +571,8 @@ require_once get_theme_file_path( 'inc/jbk-trending-review.php' );
 // Picks up auto-ads inventory by default; for guaranteed fill paste explicit
 // ad-unit slot IDs into the JBK_AD_SLOT_* constants in the file.
 require_once get_theme_file_path( 'inc/jbk-ad-placements.php' );
+
+// Google Consent Mode v2 — emits gtag('consent','default'/'update') signals
+// so AdSense + GA can switch between personalized/non-personalized ads.
+// Bridges Complianz Free (which doesn't ship Consent Mode v2 itself).
+require_once get_theme_file_path( 'inc/jbk-consent-mode.php' );
