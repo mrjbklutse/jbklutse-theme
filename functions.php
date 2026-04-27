@@ -566,3 +566,8 @@ require_once get_theme_file_path( 'inc/rank-math-rest.php' );
 // Trending news review pipeline: tokenized public preview URL +
 // /jbklutse/v1/send-review-email REST endpoint (uses wp_mail via wp-mail-smtp).
 require_once get_theme_file_path( 'inc/jbk-trending-review.php' );
+
+// AdSense manual placements (top, mid, bottom of every single post).
+// Picks up auto-ads inventory by default; for guaranteed fill paste explicit
+// ad-unit slot IDs into the JBK_AD_SLOT_* constants in the file.
+require_once get_theme_file_path( 'inc/jbk-ad-placements.php' );
