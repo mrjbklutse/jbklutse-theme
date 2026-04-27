@@ -22,87 +22,20 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-add_action( 'wp_head', function () {
-    // High priority - must run before AdSense, GA, GTM, etc.
-    ?>
-<!-- Google Consent Mode v2 (JBKlutse manual implementation, bridges Complianz Free) -->
-<script>
-window.dataLayer = window.dataLayer || [];
-function gtag() { dataLayer.push(arguments); }
-
-// Default state: deny everything until user consents. Wait 500ms for
-// Complianz to load its stored state before any tag fires.
-gtag('consent', 'default', {
-    'ad_storage': 'denied',
-    'ad_user_data': 'denied',
-    'ad_personalization': 'denied',
-    'analytics_storage': 'denied',
-    'functionality_storage': 'denied',
-    'personalization_storage': 'denied',
-    'security_storage': 'granted',
-    'wait_for_update': 500
-});
-gtag('set', 'ads_data_redaction', true);
-gtag('set', 'url_passthrough', true);
-
-// Listen to Complianz consent change events and forward to gtag.
-// Complianz fires `cmplz_status_change` on the document with a detail
-// object describing which categories were granted.
-document.addEventListener('cmplz_status_change', function (e) {
-    var consentedCategories = e.detail && e.detail.categories ? e.detail.categories : [];
-    var allConsented = (e.detail && e.detail.consentLevel === 'optin' && consentedCategories.length === 0)
-        || (consentedCategories.indexOf('marketing') !== -1
-            && consentedCategories.indexOf('statistics') !== -1
-            && consentedCategories.indexOf('preferences') !== -1);
-    var payload = {
-        'ad_storage':              consentedCategories.indexOf('marketing')   !== -1 ? 'granted' : 'denied',
-        'ad_user_data':            consentedCategories.indexOf('marketing')   !== -1 ? 'granted' : 'denied',
-        'ad_personalization':      consentedCategories.indexOf('marketing')   !== -1 ? 'granted' : 'denied',
-        'analytics_storage':       consentedCategories.indexOf('statistics')  !== -1 ? 'granted' : 'denied',
-        'functionality_storage':   consentedCategories.indexOf('preferences') !== -1 ? 'granted' : 'denied',
-        'personalization_storage': consentedCategories.indexOf('preferences') !== -1 ? 'granted' : 'denied'
-    };
-    gtag('consent', 'update', payload);
-});
-
-// Also handle the "accept all" click event which Complianz fires separately
-document.addEventListener('cmplz_accept_marketing', function () {
-    gtag('consent', 'update', {
-        'ad_storage': 'granted',
-        'ad_user_data': 'granted',
-        'ad_personalization': 'granted'
-    });
-});
-document.addEventListener('cmplz_accept_statistics', function () {
-    gtag('consent', 'update', { 'analytics_storage': 'granted' });
-});
-document.addEventListener('cmplz_accept_preferences', function () {
-    gtag('consent', 'update', {
-        'functionality_storage': 'granted',
-        'personalization_storage': 'granted'
-    });
-});
-
-// On page load, restore consent state from Complianz's stored status if
-// the user has already given consent in a previous session.
-(function () {
-    if (typeof window.cmplz_check_cookies !== 'undefined') return; // Complianz handles
-    try {
-        var stored = localStorage.getItem('cmplz_consent_status');
-        if (stored) {
-            var consentLevel = stored.toLowerCase();
-            if (consentLevel === 'allow' || consentLevel.indexOf('marketing') !== -1) {
-                gtag('consent', 'update', {
-                    'ad_storage': 'granted',
-                    'ad_user_data': 'granted',
-                    'ad_personalization': 'granted',
-                    'analytics_storage': 'granted'
-                });
-            }
-        }
-    } catch (e) { /* localStorage blocked, fall back to default deny */ }
-})();
-</script>
-<!-- end JBK Consent Mode v2 -->
-    <?php
-}, 1 ); // priority 1 = very early in <head>, before AdSense / Site Kit
+function jbk_emit_consent_mode_v2() {
+    echo "<!-- Google Consent Mode v2 (JBKlutse manual implementation) -->\n";
+    echo "<script>\n";
+    echo "window.dataLayer = window.dataLayer || [];\n";
+    echo "function gtag(){dataLayer.push(arguments);}\n";
+    echo "gtag('consent','default',{'ad_storage':'denied','ad_user_data':'denied','ad_personalization':'denied','analytics_storage':'denied','functionality_storage':'denied','personalization_storage':'denied','security_storage':'granted','wait_for_update':500});\n";
+    echo "gtag('set','ads_data_redaction',true);\n";
+    echo "gtag('set','url_passthrough',true);\n";
+    echo "document.addEventListener('cmplz_status_change',function(e){var c=(e.detail&&e.detail.categories)?e.detail.categories:[];gtag('consent','update',{'ad_storage':c.indexOf('marketing')!==-1?'granted':'denied','ad_user_data':c.indexOf('marketing')!==-1?'granted':'denied','ad_personalization':c.indexOf('marketing')!==-1?'granted':'denied','analytics_storage':c.indexOf('statistics')!==-1?'granted':'denied','functionality_storage':c.indexOf('preferences')!==-1?'granted':'denied','personalization_storage':c.indexOf('preferences')!==-1?'granted':'denied'});});\n";
+    echo "document.addEventListener('cmplz_accept_marketing',function(){gtag('consent','update',{'ad_storage':'granted','ad_user_data':'granted','ad_personalization':'granted'});});\n";
+    echo "document.addEventListener('cmplz_accept_statistics',function(){gtag('consent','update',{'analytics_storage':'granted'});});\n";
+    echo "document.addEventListener('cmplz_accept_preferences',function(){gtag('consent','update',{'functionality_storage':'granted','personalization_storage':'granted'});});\n";
+    echo "try{var s=localStorage.getItem('cmplz_consent_status');if(s&&(s.toLowerCase()==='allow'||s.toLowerCase().indexOf('marketing')!==-1)){gtag('consent','update',{'ad_storage':'granted','ad_user_data':'granted','ad_personalization':'granted','analytics_storage':'granted'});}}catch(e){}\n";
+    echo "</script>\n";
+    echo "<!-- end JBK Consent Mode v2 -->\n";
+}
+add_action( 'wp_head', 'jbk_emit_consent_mode_v2', 1 );
