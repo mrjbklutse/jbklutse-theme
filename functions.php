@@ -576,3 +576,7 @@ require_once get_theme_file_path( 'inc/jbk-ad-placements.php' );
 // so AdSense + GA can switch between personalized/non-personalized ads.
 // Bridges Complianz Free (which doesn't ship Consent Mode v2 itself).
 require_once get_theme_file_path( 'inc/jbk-consent-mode.php' );
+
+// Opportunities Vertical (Phase 3.1 foundation): CPT, taxonomy, custom URL
+// routing, meta fields, daily auto-expire sweep, basic apply-button injection.
+require_once get_theme_file_path( 'inc/jbk-opportunities-cpt.php' );
