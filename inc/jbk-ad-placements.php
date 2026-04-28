@@ -33,6 +33,29 @@ if ( ! defined( 'JBK_ADSENSE_CLIENT' ) ) {
     define( 'JBK_ADSENSE_CLIENT', 'ca-pub-6894678502498613' );
 }
 
+
+/**
+ * Load the AdSense loader script. Previously came from Site Kit; now loaded
+ * directly so AdSense works without the platform plugin (and without the
+ * `host=ca-host-pub-...` "hosted content" attribution that Site Kit appends,
+ * which suppresses Auto Ads fill rate).
+ *
+ * Uses wp_enqueue_scripts (not raw wp_head echo) so CDN optimizers respect it.
+ */
+add_action( 'wp_enqueue_scripts', function () {
+    $client = JBK_ADSENSE_CLIENT;
+    $src    = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=' . $client;
+    wp_enqueue_script( 'jbk-adsense-loader', $src, array(), null, false ); // header, async via filter
+}, -50 );
+
+add_filter( 'script_loader_tag', function ( $tag, $handle ) {
+    if ( $handle === 'jbk-adsense-loader' ) {
+        // AdSense requires async + crossorigin
+        $tag = str_replace( '<script ', '<script async crossorigin="anonymous" ', $tag );
+    }
+    return $tag;
+}, 10, 2 );
+
 // Replace these with real AdSense ad-unit slot IDs once created.
 // Leaving them empty falls back to auto-ads filling the slot.
 if ( ! defined( 'JBK_AD_SLOT_TOP' ) )    define( 'JBK_AD_SLOT_TOP', '' );
