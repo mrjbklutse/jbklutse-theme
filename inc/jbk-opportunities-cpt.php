@@ -99,6 +99,12 @@ function jbk_register_opportunity_type() {
  */
 add_action( 'init', 'jbk_opportunity_rewrites', 1 );
 function jbk_opportunity_rewrites() {
+    // Register the placeholder as a real rewrite tag so WordPress
+    // substitutes it when generating CPT rules. WITHOUT this, generated
+    // rules contain literal "%opportunity_type%" and single posts 404.
+    add_rewrite_tag( '%opportunity_type%', '([^/]+)', 'opportunity_type=' );
+
+    // Custom rule: /opportunities/<type>/ -> taxonomy archive
     add_rewrite_rule(
         '^opportunities/([^/]+)/?$',
         'index.php?opportunity_type=$matches[1]',
@@ -163,7 +169,7 @@ function jbk_opportunity_seed_terms() {
  */
 add_action( 'init', 'jbk_opportunity_maybe_flush_rules', 99 );
 function jbk_opportunity_maybe_flush_rules() {
-    $version = '1.0';
+    $version = '1.1'; // bumped after add_rewrite_tag fix
     if ( get_option( 'jbk_opportunity_rules_version' ) !== $version ) {
         flush_rewrite_rules( false );
         update_option( 'jbk_opportunity_rules_version', $version );
