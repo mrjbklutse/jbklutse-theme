@@ -169,6 +169,23 @@
 					"fontFamily": "var(--wp--preset--font-family--heading)"
 				}
 			},
+			"core/site-title": {
+				"color": {
+					"text": "#ffffff"
+				},
+				"elements": {
+					"link": {
+						"color": {
+							"text": "#ffffff"
+						},
+						":hover": {
+							"color": {
+								"text": "var(--wp--preset--color--accent)"
+							}
+						}
+					}
+				}
+			},
 			"core/quote": {
 				"border": {
 					"left": {
