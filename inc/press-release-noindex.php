@@ -86,6 +86,46 @@ add_filter( 'rank_math/frontend/robots', 'jbk_pr_rank_math_robots', 10, 1 );
 
 /**
  * Remove press release posts from the Rank Math sitemap entirely.
+ *
+ * Current Rank Math versions build a cached post exclusion list via
+ * `rank_math/sitemap/posts_to_exclude`. Keep the older per-post filter below
+ * for backward compatibility, but this list filter is the one live XML
+ * sitemap generation uses.
+ *
+ * @param array $posts_to_exclude Existing excluded post IDs.
+ * @return array
+ */
+function jbk_pr_sitemap_posts_to_exclude( $posts_to_exclude ) {
+	$pr_posts = get_posts( array(
+		'post_type'              => 'post',
+		'post_status'            => 'publish',
+		'posts_per_page'         => -1,
+		'fields'                 => 'ids',
+		'no_found_rows'          => true,
+		'update_post_meta_cache' => false,
+		'update_post_term_cache' => false,
+		'tax_query'              => array(
+			array(
+				'taxonomy' => 'category',
+				'field'    => 'term_id',
+				'terms'    => JBK_PRESS_RELEASE_CAT_ID,
+			),
+		),
+	) );
+
+	return array_values( array_unique( array_map( 'absint', array_merge(
+		(array) $posts_to_exclude,
+		$pr_posts
+	) ) ) );
+}
+add_filter( 'rank_math/sitemap/posts_to_exclude', 'jbk_pr_sitemap_posts_to_exclude', 10, 1 );
+
+// Keep XML sitemaps generated fresh so PR exclusions are not hidden by stale
+// Rank Math file caches after publication/category changes.
+add_filter( 'rank_math/sitemap/enable_caching', '__return_false' );
+
+/**
+ * Remove press release posts from older Rank Math sitemap generation paths.
  * Filter fires per-post when Rank Math builds the sitemap.
  *
  * @param bool $exclude Whether to exclude.
@@ -103,6 +143,27 @@ add_filter( 'rank_math/sitemap/exclude_post', 'jbk_pr_sitemap_exclude', 10, 2 );
 // `sitemap.exclude_terms` setting (rank-math-options-sitemap option), set
 // directly to "1850" on 2026-04-25. The old `rank_math/sitemap/terms`
 // filter no longer fires in current Rank Math versions.
+
+/**
+ * Keep PR posts out of Rank Math Pro's Google News sitemap.
+ *
+ * Rank Math's News Sitemap checks the per-post
+ * `rank_math_news_sitemap_robots` meta key separately from the normal robots
+ * meta, so set it whenever a PR is saved/published.
+ */
+function jbk_pr_set_news_sitemap_noindex( $post_id ) {
+	if ( wp_is_post_revision( $post_id ) || 'post' !== get_post_type( $post_id ) ) {
+		return;
+	}
+
+	if ( jbk_is_press_release( $post_id ) ) {
+		update_post_meta( $post_id, 'rank_math_news_sitemap_robots', 'noindex' );
+		return;
+	}
+
+	delete_post_meta( $post_id, 'rank_math_news_sitemap_robots' );
+}
+add_action( 'save_post_post', 'jbk_pr_set_news_sitemap_noindex', 20, 1 );
 
 /* ────────────────────────────────────────────────────────────
  * 3. Add rel="nofollow" to outbound links pointing AT press releases

@@ -68,6 +68,58 @@ function jbklutse_enqueue_assets() {
 add_action( 'wp_enqueue_scripts', 'jbklutse_enqueue_assets' );
 
 /**
+ * Rank Math owns SEO titles. Keep WordPress core's fallback title support for
+ * safety, but remove its wp_head renderer when Rank Math is active to avoid
+ * duplicate <title> tags.
+ */
+function jbklutse_disable_core_title_when_rank_math_active() {
+	if ( defined( 'RANK_MATH_VERSION' ) || class_exists( 'RankMath' ) ) {
+		remove_action( 'wp_head', '_wp_render_title_tag', 1 );
+	}
+}
+add_action( 'init', 'jbklutse_disable_core_title_when_rank_math_active', 20 );
+
+/**
+ * Defensive cleanup for duplicate title tags from SEO/plugin output collisions.
+ */
+function jbklutse_start_title_dedupe_buffer() {
+	if ( is_admin() || wp_doing_ajax() || wp_is_json_request() || is_feed() ) {
+		return;
+	}
+
+	ob_start( 'jbklutse_dedupe_title_tags' );
+}
+add_action( 'template_redirect', 'jbklutse_start_title_dedupe_buffer', 0 );
+
+function jbklutse_dedupe_title_tags( $html ) {
+	if ( substr_count( strtolower( $html ), '<title>' ) < 2 ) {
+		return $html;
+	}
+
+	$head_end = stripos( $html, '</head>' );
+	if ( false === $head_end ) {
+		return $html;
+	}
+
+	$head = substr( $html, 0, $head_end );
+	$body = substr( $html, $head_end );
+	$seen_title = false;
+	$head = preg_replace_callback(
+		'#<title\b[^>]*>.*?</title>#is',
+		function ( $match ) use ( &$seen_title ) {
+			if ( $seen_title ) {
+				return '';
+			}
+			$seen_title = true;
+			return $match[0];
+		},
+		$head
+	);
+
+	return $head . $body;
+}
+
+/**
  * Register block patterns
  */
 function jbklutse_register_patterns() {
@@ -165,7 +217,7 @@ function jbklutse_article_schema() {
 			'url'   => home_url(),
 			'logo'  => array(
 				'@type' => 'ImageObject',
-				'url'   => home_url( '/wp-content/uploads/jbklutse-logo.png' ),
+				'url'   => get_theme_file_uri( 'assets/branding/jbk-mark-teal.png' ),
 			),
 		),
 		'mainEntityOfPage' => array(
