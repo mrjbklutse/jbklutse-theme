@@ -151,38 +151,33 @@ if ( ! defined( 'ABSPATH' ) ) exit;
                     </p>
                 <?php endif; ?>
 
-                <div class="jbk-opp-meta-row">
-                    <?php if ( $location ) : ?>
-                        <div class="opp-meta-item">
-                            <span class="label">Location</span>
-                            <span class="value"><?php echo esc_html( $location ); ?></span>
-                        </div>
-                    <?php endif; ?>
-                    <?php if ( $value_display ) : ?>
-                        <div class="opp-meta-item">
-                            <span class="label">Value</span>
-                            <span class="value"><?php echo wp_kses_post( $value_display ); ?></span>
-                        </div>
-                    <?php endif; ?>
-                    <?php if ( $deadline || $deadline_txt ) : ?>
-                        <div class="opp-meta-item">
-                            <span class="label">Deadline</span>
-                            <span class="value">
-                                <?php
-                                if ( $deadline ) {
-                                    $human = wp_date( 'F j, Y', strtotime( $deadline ) );
-                                    echo esc_html( $human );
-                                    if ( ! $expired ) {
-                                        echo ' <span class="jbk-countdown" data-deadline="' . esc_attr( $deadline ) . '"></span>';
-                                    }
-                                } else {
-                                    echo esc_html( $deadline_txt );
-                                }
-                                ?>
-                            </span>
-                        </div>
-                    <?php endif; ?>
-                </div>
+                <?php
+                // Build meta-row items, skipping any with empty or whitespace-only values.
+                $meta_items = [];
+                if ( trim( (string) $location ) !== '' ) {
+                    $meta_items[] = [ 'label' => 'Location', 'html' => esc_html( $location ) ];
+                }
+                if ( trim( (string) $value_display ) !== '' ) {
+                    $meta_items[] = [ 'label' => 'Value', 'html' => wp_kses_post( $value_display ) ];
+                }
+                if ( trim( (string) $deadline ) !== '' ) {
+                    $human = wp_date( 'F j, Y', strtotime( $deadline ) );
+                    $extra = ( ! $expired ) ? ' <span class="jbk-countdown" data-deadline="' . esc_attr( $deadline ) . '"></span>' : '';
+                    $meta_items[] = [ 'label' => 'Deadline', 'html' => esc_html( $human ) . $extra ];
+                } elseif ( trim( (string) $deadline_txt ) !== '' ) {
+                    $meta_items[] = [ 'label' => 'Deadline', 'html' => esc_html( $deadline_txt ) ];
+                }
+                ?>
+                <?php if ( $meta_items ) : ?>
+                    <div class="jbk-opp-meta-row">
+                        <?php foreach ( $meta_items as $mi ) : ?>
+                            <div class="opp-meta-item">
+                                <span class="label"><?php echo esc_html( $mi['label'] ); ?></span>
+                                <span class="value"><?php echo $mi['html']; ?></span>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
 
                 <?php if ( $apply_track_url && ! $expired ) : ?>
                     <div class="jbk-apply-row">
