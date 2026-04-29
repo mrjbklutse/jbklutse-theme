@@ -265,6 +265,29 @@ function jbk_opportunity_run_expire_sweep() {
 
 
 /**
+ * 8b. Force our PHP templates to win over the block theme's template
+ * resolution. Block themes (FSE) prefer templates/*.html over PHP templates
+ * at the same hierarchy level, so our brand-styled single/archive/taxonomy
+ * templates get bypassed. This filter runs LATE and asserts the PHP file
+ * for opportunity-related routes.
+ */
+add_filter( 'template_include', function ( $template ) {
+    $candidate = '';
+    if ( is_singular( 'opportunity' ) ) {
+        $candidate = get_theme_file_path( 'single-opportunity.php' );
+    } elseif ( is_tax( 'opportunity_type' ) ) {
+        $candidate = get_theme_file_path( 'taxonomy-opportunity_type.php' );
+    } elseif ( is_post_type_archive( 'opportunity' ) ) {
+        $candidate = get_theme_file_path( 'archive-opportunity.php' );
+    }
+    if ( $candidate && file_exists( $candidate ) ) {
+        return $candidate;
+    }
+    return $template;
+}, 99 );
+
+
+/**
  * 9. EXPIRED badge on titles when shown in the loop on opportunity posts.
  */
 add_filter( 'the_title', 'jbk_opportunity_expired_title', 10, 2 );
