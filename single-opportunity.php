@@ -11,8 +11,20 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-get_header();
+// FSE block theme — load header template part via block API.
+// (get_header() doesn't work for block themes; we render parts/header.html directly.)
 ?>
+<!DOCTYPE html>
+<html <?php language_attributes(); ?>>
+<head>
+    <meta charset="<?php bloginfo( 'charset' ); ?>">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <?php wp_head(); ?>
+</head>
+<body <?php body_class(); ?>>
+<?php wp_body_open(); ?>
+<?php block_template_part( 'header' ); ?>
+<?php
 
 <style>
 .jbk-opp-page{max-width:1100px;margin:30px auto;padding:0 20px;font-family:system-ui,-apple-system,sans-serif;color:#1f2937;}
@@ -276,4 +288,7 @@ get_header();
 
 <?php endwhile; ?>
 
-<?php get_footer(); ?>
+<?php block_template_part( 'footer' ); ?>
+<?php wp_footer(); ?>
+</body>
+</html>

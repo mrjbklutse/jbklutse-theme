@@ -8,12 +8,19 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-get_header();
-
-// Determine current taxonomy term if any (used by taxonomy-opportunity_type.php
-// which includes this same template via locate_template fallback).
+// FSE block theme — render header template part directly.
 $current_term = is_tax( 'opportunity_type' ) ? get_queried_object() : null;
 ?>
+<!DOCTYPE html>
+<html <?php language_attributes(); ?>>
+<head>
+    <meta charset="<?php bloginfo( 'charset' ); ?>">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <?php wp_head(); ?>
+</head>
+<body <?php body_class(); ?>>
+<?php wp_body_open(); ?>
+<?php block_template_part( 'header' ); ?>
 
 <style>
 .jbk-opps-page{max-width:1200px;margin:30px auto;padding:0 20px;font-family:system-ui,-apple-system,sans-serif;color:#1f2937;}
@@ -180,4 +187,7 @@ $current_term = is_tax( 'opportunity_type' ) ? get_queried_object() : null;
     <?php endif; ?>
 </div>
 
-<?php get_footer(); ?>
+<?php block_template_part( 'footer' ); ?>
+<?php wp_footer(); ?>
+</body>
+</html>
