@@ -64,6 +64,16 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 .jbk-opp-content figure img,.jbk-opp-content img{max-width:100%;height:auto;border-radius:6px;}
 .jbk-opp-content .image-credit{font-size:12px;color:#9ca3af;margin-bottom:18px;}
 
+.jbk-opp-cta-bottom{margin-top:22px;background:#0f172a;color:#fff;border-radius:10px;padding:28px;text-align:center;}
+.jbk-opp-cta-bottom h3{margin:0 0 8px;color:#fbbf24;font-size:22px;line-height:1.3;}
+.jbk-opp-cta-bottom p{margin:0 0 18px;color:#cbd5e1;font-size:15px;}
+.jbk-opp-cta-bottom .jbk-apply-btn{font-size:17px;padding:16px 36px;}
+.jbk-opp-cta-bottom .deadline-reminder{font-size:13px;color:#94a3b8;margin-top:14px;}
+.jbk-opp-cta-bottom .deadline-reminder strong{color:#fbbf24;}
+.jbk-opp-cta-bottom.expired{background:#f3f4f6;color:#374151;}
+.jbk-opp-cta-bottom.expired h3{color:#374151;}
+.jbk-opp-cta-bottom.expired p{color:#6b7280;}
+
 .jbk-opp-sidebar{position:sticky;top:80px;}
 .jbk-sidebar-card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:18px;margin-bottom:18px;}
 .jbk-sidebar-card h3{font-size:14px;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;margin:0 0 12px;}
@@ -196,6 +206,33 @@ if ( ! defined( 'ABSPATH' ) ) exit;
             <article class="jbk-opp-content">
                 <?php the_content(); ?>
             </article>
+
+            <?php if ( $apply_track_url && ! $expired ) : ?>
+                <section class="jbk-opp-cta-bottom">
+                    <h3>Ready to apply?</h3>
+                    <p>You've read the details. Now is when most applications get abandoned. Don't be that person.</p>
+                    <a class="jbk-apply-btn"
+                       href="<?php echo esc_url( $apply_track_url ); ?>"
+                       target="_blank"
+                       rel="noopener nofollow sponsored"
+                       onclick="if(navigator.sendBeacon){navigator.sendBeacon('/wp-json/jbklutse/v1/track-apply-click',new Blob([JSON.stringify({post_id:<?php echo (int) $post_id; ?>,position:'bottom'})],{type:'application/json'}));}">
+                        Apply on <?php echo esc_html( $organization ?: 'official site' ); ?> &rarr;
+                    </a>
+                    <?php if ( $deadline ) : ?>
+                        <p class="deadline-reminder">
+                            Closes <strong><?php echo esc_html( wp_date( 'F j, Y', strtotime( $deadline ) ) ); ?></strong>
+                            <span class="jbk-countdown" data-deadline="<?php echo esc_attr( $deadline ); ?>"></span>
+                        </p>
+                    <?php elseif ( $deadline_txt ) : ?>
+                        <p class="deadline-reminder">Deadline: <strong><?php echo esc_html( $deadline_txt ); ?></strong></p>
+                    <?php endif; ?>
+                </section>
+            <?php elseif ( $expired ) : ?>
+                <section class="jbk-opp-cta-bottom expired">
+                    <h3>This opportunity has closed</h3>
+                    <p>Browse current <a href="<?php echo esc_url( $type_url ); ?>"><?php echo esc_html( strtolower( $type_label ) ); ?></a> or all <a href="<?php echo esc_url( home_url( '/opportunities/' ) ); ?>">opportunities</a> for similar listings still accepting applications.</p>
+                </section>
+            <?php endif; ?>
         </main>
 
         <aside class="jbk-opp-sidebar">
