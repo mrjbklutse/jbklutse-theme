@@ -363,7 +363,9 @@ function jbk_opportunity_schedule_expire_sweep() {
 add_action( 'jbk_opportunity_expire_sweep', 'jbk_opportunity_run_expire_sweep' );
 function jbk_opportunity_run_expire_sweep() {
     $today = wp_date( 'Y-m-d' );
-    $ids   = get_posts( [
+
+    // Pass 1 — concrete deadline in the past
+    $dated_expired = get_posts( [
         'post_type'      => 'opportunity',
         'post_status'    => 'publish',
         'posts_per_page' => -1,
@@ -383,12 +385,117 @@ function jbk_opportunity_run_expire_sweep() {
             ],
         ],
     ] );
+
+    // Pass 2 — undated posts older than 60 days from publish.
+    //
+    // Without this rule, an opportunity ingested with no extractable
+    // deadline (and no `Rolling` text fallback in the legacy queue) would
+    // sit on /opportunities/ forever. 60 days is conservative — long
+    // enough to keep genuinely-rolling postings live, short enough to
+    // stop "while-stocks-last"-type promos drifting indefinitely.
+    $undated_old = get_posts( [
+        'post_type'      => 'opportunity',
+        'post_status'    => 'publish',
+        'posts_per_page' => -1,
+        'fields'         => 'ids',
+        'date_query'     => [
+            [ 'before' => '-60 days' ],
+        ],
+        'meta_query'     => [
+            'relation' => 'AND',
+            [
+                'relation' => 'OR',
+                [ 'key' => '_deadline',      'compare' => 'NOT EXISTS' ],
+                [ 'key' => '_deadline',      'value' => '', 'compare' => '=' ],
+            ],
+            [
+                'relation' => 'OR',
+                [ 'key' => '_deadline_text', 'compare' => 'NOT EXISTS' ],
+                [ 'key' => '_deadline_text', 'value' => '', 'compare' => '=' ],
+            ],
+            [
+                'relation' => 'OR',
+                [ 'key' => '_expired', 'compare' => 'NOT EXISTS' ],
+                [ 'key' => '_expired', 'value' => '1', 'compare' => '!=' ],
+            ],
+        ],
+    ] );
+
+    $ids = array_unique( array_merge( $dated_expired, $undated_old ) );
     foreach ( $ids as $id ) {
         update_post_meta( $id, '_expired', '1' );
     }
     if ( $ids ) {
-        error_log( sprintf( '[jbk_opportunity_expire_sweep] flagged %d posts as expired', count( $ids ) ) );
+        error_log( sprintf(
+            '[jbk_opportunity_expire_sweep] flagged %d posts as expired (dated: %d, undated>60d: %d)',
+            count( $ids ), count( $dated_expired ), count( $undated_old )
+        ) );
     }
+}
+
+
+/**
+ * 8c. Soft-retire expired opportunities — apply `noindex` via Rank Math's
+ * frontend robots filter so Google de-indexes them, while keeping the post
+ * accessible at its URL (preserves any inbound backlinks and direct-link
+ * referrals; templates still show the EXPIRED badge).
+ *
+ * Logic:
+ *   - On a single opportunity post with _expired=1 → robots = noindex,follow
+ *   - Everywhere else → leave the existing robots untouched.
+ *
+ * This sits AFTER our existing `jbk_pr_rank_math_robots` filter (priority
+ * 10) so press-releases keep their own noindex rules and opportunity
+ * filters compose cleanly.
+ */
+add_filter( 'rank_math/frontend/robots', 'jbk_opportunity_robots_noindex_when_expired', 11, 1 );
+function jbk_opportunity_robots_noindex_when_expired( $robots ) {
+    if ( ! is_singular( 'opportunity' ) ) {
+        return $robots;
+    }
+    $post_id = get_queried_object_id();
+    if ( ! $post_id ) {
+        return $robots;
+    }
+    if ( get_post_meta( $post_id, '_expired', true ) !== '1' ) {
+        return $robots;
+    }
+
+    // Force noindex,follow. Drop any conflicting "index" directive Rank Math
+    // may have already added so the resulting tag doesn't say "index, noindex"
+    // (which Google ignores in favour of the more permissive directive).
+    if ( ! is_array( $robots ) ) {
+        $robots = [];
+    }
+    $robots['index']   = 'noindex';
+    $robots['follow']  = 'follow';
+    return $robots;
+}
+
+
+/**
+ * 8d. Keep expired opportunities out of XML sitemaps. Rank Math's
+ * `posts_to_exclude` filter accepts an array of post IDs to drop from
+ * sitemap generation.
+ */
+add_filter( 'rank_math/sitemap/posts_to_exclude', 'jbk_opportunity_sitemap_exclude_expired', 10, 1 );
+function jbk_opportunity_sitemap_exclude_expired( $excluded ) {
+    $expired_ids = get_posts( [
+        'post_type'              => 'opportunity',
+        'post_status'            => 'publish',
+        'posts_per_page'         => -1,
+        'fields'                 => 'ids',
+        'no_found_rows'          => true,
+        'update_post_meta_cache' => false,
+        'update_post_term_cache' => false,
+        'meta_query'             => [
+            [ 'key' => '_expired', 'value' => '1', 'compare' => '=' ],
+        ],
+    ] );
+    return array_values( array_unique( array_map(
+        'absint',
+        array_merge( (array) $excluded, $expired_ids )
+    ) ) );
 }
 
 
