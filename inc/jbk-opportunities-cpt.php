@@ -281,13 +281,20 @@ function jbk_opportunity_expired_title( $title, $post_id = 0 ) {
 
 /**
  * 10. Append a basic Apply Now box + opportunity meta to the_content on
- * single opportunity posts. Provides functional output without requiring
- * a custom single-opportunity.php template (we'll add a proper template
- * in Phase 3.5).
+ * single opportunity posts.
+ *
+ * DEPRECATED in Phase 3.5: single-opportunity.php now renders the hero +
+ * apply box natively. We disable this content-filter injection if the
+ * custom single template is being used (avoids duplicate Apply boxes).
  */
 add_filter( 'the_content', 'jbk_opportunity_inject_meta_box', 5 );
 function jbk_opportunity_inject_meta_box( $content ) {
     if ( ! is_singular( 'opportunity' ) || ! is_main_query() || ! in_the_loop() ) {
+        return $content;
+    }
+    // If the custom single-opportunity.php template is being used, it
+    // already renders the hero + apply box. Don't duplicate.
+    if ( locate_template( 'single-opportunity.php' ) ) {
         return $content;
     }
     $post_id = get_the_ID();
