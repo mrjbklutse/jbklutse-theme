@@ -24,7 +24,6 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 <body <?php body_class(); ?>>
 <?php wp_body_open(); ?>
 <?php block_template_part( 'header' ); ?>
-<?php
 
 <style>
 .jbk-opp-page{max-width:1100px;margin:30px auto;padding:0 20px;font-family:system-ui,-apple-system,sans-serif;color:#1f2937;}
