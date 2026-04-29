@@ -35,6 +35,17 @@ if ( ! defined( 'JBK_ADSENSE_CLIENT' ) ) {
 
 
 /**
+ * Detect the Complianz cookie scanner. Complianz loads the homepage in an
+ * iframe inside wp-admin to detect tracking scripts; if AdSense fires there,
+ * it generates real ad impressions during every scan, which AdSense flags as
+ * invalid traffic and risks an account strike.
+ */
+function jbk_is_complianz_scan(): bool {
+    return isset( $_GET['complianz_scan_token'] ) || isset( $_GET['complianz_id'] );
+}
+
+
+/**
  * Load the AdSense loader script. Previously came from Site Kit; now loaded
  * directly so AdSense works without the platform plugin (and without the
  * `host=ca-host-pub-...` "hosted content" attribution that Site Kit appends,
@@ -43,6 +54,7 @@ if ( ! defined( 'JBK_ADSENSE_CLIENT' ) ) {
  * Uses wp_enqueue_scripts (not raw wp_head echo) so CDN optimizers respect it.
  */
 add_action( 'wp_enqueue_scripts', function () {
+    if ( jbk_is_complianz_scan() ) return;
     $client = JBK_ADSENSE_CLIENT;
     $src    = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=' . $client;
     wp_enqueue_script( 'jbk-adsense-loader', $src, array(), null, false ); // header, async via filter
@@ -112,6 +124,7 @@ add_filter( 'the_content', function ( $content ) {
     if ( ! is_singular( 'post' ) ) return $content;
     if ( ! is_main_query() && ! in_the_loop() ) return $content;
     if ( is_admin() || is_feed() ) return $content;
+    if ( jbk_is_complianz_scan() ) return $content;
 
     // Skip very short posts (< 400 words) — ads on tiny articles look spammy
     $word_count = str_word_count( wp_strip_all_tags( $content ) );
