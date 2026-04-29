@@ -221,6 +221,134 @@ function jbk_opportunity_register_meta() {
 
 
 /**
+ * 7b. Register Rank Math's own meta keys for the `opportunity` post type.
+ *
+ * WordPress REST silently drops any meta key that isn't registered with
+ * `show_in_rest=true` for a given post type. Rank Math auto-registers its
+ * meta on `post` and `page`, but NOT on custom post types. Without this
+ * block, the publishing pipeline POSTs `rank_math_focus_keyword`, `_title`,
+ * `_description`, `_facebook_image` etc. and they vanish into the void —
+ * the Rank Math admin column then shows "Keyword: Not Set / Schema: Off".
+ *
+ * Registering them here makes them REST-writable so the existing drafter
+ * code (which already sends them) starts saving correctly. Use the
+ * companion backfill script `scripts/backfill_opportunity_seo.py` to fill
+ * the 22 already-published opportunity posts.
+ */
+add_action( 'init', 'jbk_opportunity_register_rank_math_meta', 11 );
+function jbk_opportunity_register_rank_math_meta() {
+    $rm_string_keys = [
+        // Core SEO meta (the four big rank levers)
+        'rank_math_focus_keyword',
+        'rank_math_title',
+        'rank_math_description',
+        'rank_math_canonical_url',
+        // Cornerstone / pillar flag (clusters set "", pillars set "on")
+        'rank_math_pillar_content',
+        // OG / social
+        'rank_math_facebook_image',
+        'rank_math_facebook_title',
+        'rank_math_facebook_description',
+        'rank_math_twitter_image',
+        'rank_math_twitter_title',
+        'rank_math_twitter_description',
+        // News + Sitemap controls
+        'rank_math_news_sitemap_robots',
+        // Schema (set to "article", "jobposting", "course", "event", etc.)
+        'rank_math_rich_snippet',
+        // Common JobPosting schema fields (used when rank_math_rich_snippet=jobposting)
+        'rank_math_snippet_jobposting_salary',
+        'rank_math_snippet_jobposting_employment_type',
+        'rank_math_snippet_jobposting_organization',
+        // Common Event schema fields
+        'rank_math_snippet_event_status',
+        'rank_math_snippet_event_attendance_mode',
+        'rank_math_snippet_event_location',
+        // Course schema fields (scholarships / bootcamps)
+        'rank_math_snippet_course_provider',
+        'rank_math_snippet_course_provider_url',
+    ];
+    foreach ( $rm_string_keys as $key ) {
+        register_post_meta( 'opportunity', $key, [
+            'type'          => 'string',
+            'single'        => true,
+            'show_in_rest'  => true,
+            'auth_callback' => function () { return current_user_can( 'edit_posts' ); },
+        ] );
+    }
+
+    // Robots is an array of directive strings (e.g. ["index","follow",
+    // "max-snippet:-1","max-image-preview:large","max-video-preview:-1"]).
+    // REST needs the schema spec to accept JSON array writes.
+    register_post_meta( 'opportunity', 'rank_math_robots', [
+        'type'          => 'array',
+        'single'        => true,
+        'show_in_rest'  => [
+            'schema' => [
+                'type'  => 'array',
+                'items' => [ 'type' => 'string' ],
+            ],
+        ],
+        'auth_callback' => function () { return current_user_can( 'edit_posts' ); },
+    ] );
+}
+
+
+/**
+ * 7c. Set sensible Rank Math defaults for the `opportunity` post type the
+ * first time we see this version of the file. Two changes:
+ *
+ *   - Default schema → "article" so opportunity posts produce Article
+ *     structured data out of the box. Per-type schemas (JobPosting, Event,
+ *     Course) can be set per-post via rank_math_rich_snippet.
+ *   - Include opportunity posts in the XML sitemap.
+ *
+ * Versioned via an option flag so we don't fight admin edits — the user
+ * can override these defaults in Rank Math UI and we won't clobber them
+ * on later runs.
+ */
+add_action( 'init', 'jbk_opportunity_set_rank_math_defaults', 99 );
+function jbk_opportunity_set_rank_math_defaults() {
+    if ( get_option( 'jbk_opp_rank_math_defaults_v' ) === '1' ) {
+        return;
+    }
+
+    $titles = (array) get_option( 'rank-math-options-titles', [] );
+    $changed = false;
+
+    if ( empty( $titles['pt_opportunity_default_rich_snippet'] ) ) {
+        $titles['pt_opportunity_default_rich_snippet'] = 'article';
+        $changed = true;
+    }
+    if ( empty( $titles['pt_opportunity_default_article_type'] ) ) {
+        $titles['pt_opportunity_default_article_type'] = 'Article';
+        $changed = true;
+    }
+    if ( ! isset( $titles['pt_opportunity_sitemap'] ) ) {
+        $titles['pt_opportunity_sitemap'] = 'on';
+        $changed = true;
+    }
+    if ( empty( $titles['pt_opportunity_robots'] ) ) {
+        $titles['pt_opportunity_robots'] = [ 'index' ];
+        $changed = true;
+    }
+    if ( empty( $titles['pt_opportunity_advanced_robots'] ) ) {
+        $titles['pt_opportunity_advanced_robots'] = [
+            'max-snippet'        => '-1',
+            'max-video-preview'  => '-1',
+            'max-image-preview'  => 'large',
+        ];
+        $changed = true;
+    }
+
+    if ( $changed ) {
+        update_option( 'rank-math-options-titles', $titles );
+    }
+    update_option( 'jbk_opp_rank_math_defaults_v', '1' );
+}
+
+
+/**
  * 8. Daily auto-expire sweep. Past-deadline posts get `_expired = 1`.
  * They stay published (SEO juice preserved) — templates show an
  * EXPIRED badge based on this flag.
