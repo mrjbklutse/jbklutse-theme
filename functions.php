@@ -580,3 +580,7 @@ require_once get_theme_file_path( 'inc/jbk-consent-mode.php' );
 // Opportunities Vertical (Phase 3.1 foundation): CPT, taxonomy, custom URL
 // routing, meta fields, daily auto-expire sweep, basic apply-button injection.
 require_once get_theme_file_path( 'inc/jbk-opportunities-cpt.php' );
+
+// Site chrome (header/footer) brand-color overrides — forces white/teal text
+// on the dark primary background regardless of block-generated CSS.
+require_once get_theme_file_path( 'inc/jbk-chrome-overrides.php' );
