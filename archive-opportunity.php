@@ -53,7 +53,25 @@ $current_term = is_tax( 'opportunity_type' ) ? get_queried_object() : null;
 .jbk-card{background:var(--jbk-surface);border:1px solid var(--jbk-border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;transition:transform .15s,box-shadow .15s;}
 .jbk-card:hover{transform:translateY(-2px);box-shadow:0 8px 16px rgba(0,128,128,.10);}
 .jbk-card.featured{border-color:var(--jbk-secondary);box-shadow:0 0 0 2px var(--jbk-secondary) inset;}
-.jbk-card-thumb{aspect-ratio:16/9;background:var(--jbk-bg);background-size:cover;background-position:center;position:relative;}
+.jbk-card-thumb{aspect-ratio:16/9;background:var(--jbk-bg);background-size:cover;background-position:center;position:relative;display:flex;align-items:center;justify-content:center;}
+/* Per-type fallback gradients + emoji-glyph used when a card has no
+   featured-image. Each type gets a recognisable colour pair so the page
+   doesn't render as a row of identical grey rectangles. */
+.jbk-card-thumb.no-thumb{color:#fff;font-family:var(--jbk-heading-font);font-size:48px;letter-spacing:.04em;text-shadow:0 2px 8px rgba(0,0,0,.18);}
+.jbk-card-thumb.no-thumb .jbk-thumb-glyph{font-size:54px;line-height:1;}
+.jbk-card-thumb.no-thumb .jbk-thumb-label{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-top:6px;opacity:.92;}
+.jbk-card-thumb.no-thumb .jbk-thumb-stack{display:flex;flex-direction:column;align-items:center;text-align:center;}
+.jbk-card-thumb.type-jobs        {background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 100%);}
+.jbk-card-thumb.type-scholarships{background:linear-gradient(135deg,#065f46 0%,#10b981 100%);}
+.jbk-card-thumb.type-fellowships {background:linear-gradient(135deg,#7c2d12 0%,#ea580c 100%);}
+.jbk-card-thumb.type-grants      {background:linear-gradient(135deg,#581c87 0%,#a855f7 100%);}
+.jbk-card-thumb.type-deals       {background:linear-gradient(135deg,#9a3412 0%,#fb923c 100%);}
+.jbk-card-thumb.type-events      {background:linear-gradient(135deg,#0e7490 0%,#06b6d4 100%);}
+.jbk-card-thumb.type-webinars    {background:linear-gradient(135deg,#1e40af 0%,#60a5fa 100%);}
+.jbk-card-thumb.type-bootcamps   {background:linear-gradient(135deg,#9f1239 0%,#fb7185 100%);}
+.jbk-card-thumb.type-creators    {background:linear-gradient(135deg,#4338ca 0%,#a78bfa 100%);}
+.jbk-card-thumb.type-telco-promos{background:linear-gradient(135deg,#15803d 0%,#84cc16 100%);}
+.jbk-card-thumb.type-default     {background:linear-gradient(135deg,#0f172a 0%,#475569 100%);}
 .jbk-card-badge{position:absolute;top:10px;left:10px;background:var(--jbk-primary);color:var(--jbk-accent);padding:4px 10px;border-radius:999px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;font-family:var(--jbk-heading-font);}
 .jbk-card-badge.featured{background:var(--jbk-secondary);color:#fff;}
 .jbk-card-body{padding:16px;flex:1;display:flex;flex-direction:column;}
@@ -133,6 +151,37 @@ $current_term = is_tax( 'opportunity_type' ) ? get_queried_object() : null;
                 $thumb_url    = get_the_post_thumbnail_url( $pid, 'medium_large' );
                 $terms        = get_the_terms( $pid, 'opportunity_type' );
                 $type_label   = ( ! is_wp_error( $terms ) && $terms ) ? $terms[0]->name : 'Opportunity';
+                $type_slug    = ( ! is_wp_error( $terms ) && $terms ) ? $terms[0]->slug : 'default';
+
+                // Per-type emoji glyph used as the no-thumb fallback. Mirrors
+                // the type slugs registered in jbk-opportunities-cpt.php.
+                $type_glyphs = [
+                    'jobs'         => '\u{1F4BC}', // briefcase
+                    'scholarships' => '\u{1F393}', // graduation cap
+                    'fellowships'  => '\u{1F31F}', // glowing star
+                    'grants'       => '\u{1F4B0}', // money bag
+                    'deals'        => '\u{1F3F7}', // tag
+                    'events'       => '\u{1F4C5}', // calendar
+                    'webinars'     => '\u{1F4FA}', // television
+                    'bootcamps'    => '\u{1F680}', // rocket
+                    'creators'     => '\u{1F3A5}', // movie camera
+                    'telco-promos' => '\u{1F4F1}', // phone
+                ];
+                // PHP doesn't support \u{} escape inside single-quoted strings prior to 7.0
+                // and we want this to work everywhere — switch to the literal symbols.
+                $type_glyphs = [
+                    'jobs'         => '💼',
+                    'scholarships' => '🎓',
+                    'fellowships'  => '🌟',
+                    'grants'       => '💰',
+                    'deals'        => '🏷️',
+                    'events'       => '📅',
+                    'webinars'     => '📺',
+                    'bootcamps'    => '🚀',
+                    'creators'     => '🎥',
+                    'telco-promos' => '📱',
+                ];
+                $glyph = isset( $type_glyphs[ $type_slug ] ) ? $type_glyphs[ $type_slug ] : '✨';
 
                 // Compute deadline state
                 $deadline_class = '';
@@ -161,13 +210,27 @@ $current_term = is_tax( 'opportunity_type' ) ? get_queried_object() : null;
                 elseif ( $value_text ) $value_short = mb_strimwidth( $value_text, 0, 22, '…' );
             ?>
                 <article class="jbk-card <?php echo $featured ? 'featured' : ''; ?>">
-                    <div class="jbk-card-thumb" <?php if ( $thumb_url ) echo 'style="background-image:url(' . esc_url( $thumb_url ) . ')"'; ?>>
-                        <?php if ( $featured ) : ?>
-                            <span class="jbk-card-badge featured">Featured</span>
-                        <?php else : ?>
-                            <span class="jbk-card-badge"><?php echo esc_html( $type_label ); ?></span>
-                        <?php endif; ?>
-                    </div>
+                    <?php if ( $thumb_url ) : ?>
+                        <div class="jbk-card-thumb" style="background-image:url(<?php echo esc_url( $thumb_url ); ?>)">
+                            <?php if ( $featured ) : ?>
+                                <span class="jbk-card-badge featured">Featured</span>
+                            <?php else : ?>
+                                <span class="jbk-card-badge"><?php echo esc_html( $type_label ); ?></span>
+                            <?php endif; ?>
+                        </div>
+                    <?php else : ?>
+                        <div class="jbk-card-thumb no-thumb type-<?php echo esc_attr( $type_slug ); ?>">
+                            <?php if ( $featured ) : ?>
+                                <span class="jbk-card-badge featured">Featured</span>
+                            <?php else : ?>
+                                <span class="jbk-card-badge"><?php echo esc_html( $type_label ); ?></span>
+                            <?php endif; ?>
+                            <div class="jbk-thumb-stack">
+                                <span class="jbk-thumb-glyph"><?php echo $glyph; ?></span>
+                                <span class="jbk-thumb-label"><?php echo esc_html( $type_label ); ?></span>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                     <div class="jbk-card-body">
                         <h2 class="jbk-card-title"><a href="<?php the_permalink(); ?>"><?php echo esc_html( get_the_title() ); ?></a></h2>
                         <?php if ( $organization ) : ?>

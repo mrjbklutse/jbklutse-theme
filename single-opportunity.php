@@ -47,6 +47,23 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 @media(max-width:860px){.jbk-opp-grid{grid-template-columns:1fr;}}
 
 .jbk-opp-hero{background:var(--jbk-surface);border:1px solid var(--jbk-border);border-radius:10px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,.04);margin-bottom:22px;}
+.jbk-opp-hero-image{margin:-24px -24px 22px -24px;border-radius:10px 10px 0 0;overflow:hidden;aspect-ratio:21/9;background:var(--jbk-bg) center/cover;display:flex;align-items:center;justify-content:center;}
+.jbk-opp-hero-image img{width:100%;height:100%;object-fit:cover;display:block;}
+.jbk-opp-hero-image.no-thumb{color:#fff;font-family:var(--jbk-heading-font);text-shadow:0 2px 8px rgba(0,0,0,.18);}
+.jbk-opp-hero-image.no-thumb .jbk-hero-glyph{font-size:88px;line-height:1;}
+.jbk-opp-hero-image.no-thumb .jbk-hero-label{font-size:16px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-top:8px;opacity:.92;}
+.jbk-opp-hero-image.no-thumb .jbk-hero-stack{display:flex;flex-direction:column;align-items:center;text-align:center;}
+.jbk-opp-hero-image.type-jobs        {background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 100%);}
+.jbk-opp-hero-image.type-scholarships{background:linear-gradient(135deg,#065f46 0%,#10b981 100%);}
+.jbk-opp-hero-image.type-fellowships {background:linear-gradient(135deg,#7c2d12 0%,#ea580c 100%);}
+.jbk-opp-hero-image.type-grants      {background:linear-gradient(135deg,#581c87 0%,#a855f7 100%);}
+.jbk-opp-hero-image.type-deals       {background:linear-gradient(135deg,#9a3412 0%,#fb923c 100%);}
+.jbk-opp-hero-image.type-events      {background:linear-gradient(135deg,#0e7490 0%,#06b6d4 100%);}
+.jbk-opp-hero-image.type-webinars    {background:linear-gradient(135deg,#1e40af 0%,#60a5fa 100%);}
+.jbk-opp-hero-image.type-bootcamps   {background:linear-gradient(135deg,#9f1239 0%,#fb7185 100%);}
+.jbk-opp-hero-image.type-creators    {background:linear-gradient(135deg,#4338ca 0%,#a78bfa 100%);}
+.jbk-opp-hero-image.type-telco-promos{background:linear-gradient(135deg,#15803d 0%,#84cc16 100%);}
+.jbk-opp-hero-image.type-default     {background:linear-gradient(135deg,#0f172a 0%,#475569 100%);}
 .jbk-opp-tag-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
 .jbk-opp-tag{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;font-family:var(--jbk-heading-font);}
 .jbk-opp-tag.type{background:var(--jbk-primary);color:var(--jbk-accent);}
@@ -153,6 +170,40 @@ if ( ! defined( 'ABSPATH' ) ) exit;
     <div class="jbk-opp-grid">
         <main>
             <div class="jbk-opp-hero">
+                <?php
+                // Hero image. Falls back to a per-type colour gradient + glyph
+                // if the post has no featured-media — keeps the visual rhythm
+                // intact instead of jumping straight from breadcrumb to title.
+                $hero_url = get_the_post_thumbnail_url( $post_id, 'large' );
+                $hero_glyphs = [
+                    'jobs'         => '💼',
+                    'scholarships' => '🎓',
+                    'fellowships'  => '🌟',
+                    'grants'       => '💰',
+                    'deals'        => '🏷️',
+                    'events'       => '📅',
+                    'webinars'     => '📺',
+                    'bootcamps'    => '🚀',
+                    'creators'     => '🎥',
+                    'telco-promos' => '📱',
+                ];
+                $hero_glyph = isset( $hero_glyphs[ $type_slug ] ) ? $hero_glyphs[ $type_slug ] : '✨';
+                ?>
+                <?php if ( $hero_url ) : ?>
+                    <div class="jbk-opp-hero-image">
+                        <img src="<?php echo esc_url( $hero_url ); ?>"
+                             alt="<?php echo esc_attr( get_the_title() ); ?>"
+                             loading="eager" decoding="async" />
+                    </div>
+                <?php else : ?>
+                    <div class="jbk-opp-hero-image no-thumb type-<?php echo esc_attr( $type_slug ?: 'default' ); ?>">
+                        <div class="jbk-hero-stack">
+                            <span class="jbk-hero-glyph"><?php echo $hero_glyph; ?></span>
+                            <span class="jbk-hero-label"><?php echo esc_html( $type_label ); ?></span>
+                        </div>
+                    </div>
+                <?php endif; ?>
+
                 <div class="jbk-opp-tag-row">
                     <span class="jbk-opp-tag type"><?php echo esc_html( $type_label ); ?></span>
                     <?php if ( $featured ) : ?><span class="jbk-opp-tag featured">Featured</span><?php endif; ?>

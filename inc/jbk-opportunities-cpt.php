@@ -429,10 +429,20 @@ function jbk_opportunity_archive_query( $query ) {
         [ 'key' => '_expired', 'compare' => 'NOT EXISTS' ],
         [ 'key' => '_expired', 'value' => '1', 'compare' => '!=' ],
     ];
-    $query->set( 'meta_query', $meta_query );
 
-    // Sort: featured first, then deadline ascending
-    $query->set( 'orderby', [ 'meta_value_num' => 'DESC', 'date' => 'DESC' ] );
-    $query->set( 'meta_key', '_featured' );
+    // Featured-first ordering. We use a NAMED meta_query clause + an
+    // EXISTS / NOT EXISTS pair so WP issues a LEFT JOIN — posts WITHOUT a
+    // `_featured` meta row still appear in the result set. Using the older
+    // `meta_key` shortcut would force an INNER JOIN and silently drop
+    // every post that hasn't been explicitly marked featured (i.e. all of
+    // them, since the drafter doesn't set this field by default). That
+    // bug caused /opportunities/ to render empty for every published post.
+    $meta_query['featured_clause'] = [
+        'relation' => 'OR',
+        [ 'key' => '_featured', 'value' => '1', 'compare' => '=' ],
+        [ 'key' => '_featured', 'compare' => 'NOT EXISTS' ],
+    ];
+    $query->set( 'meta_query', $meta_query );
+    $query->set( 'orderby', [ 'featured_clause' => 'DESC', 'date' => 'DESC' ] );
     $query->set( 'posts_per_page', 20 );
 }
