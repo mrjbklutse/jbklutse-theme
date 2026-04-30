@@ -681,3 +681,37 @@ function jbk_opportunity_archive_query( $query ) {
     $query->set( 'orderby', [ 'featured_clause' => 'DESC', 'date' => 'DESC' ] );
     $query->set( 'posts_per_page', 20 );
 }
+
+
+/**
+ * Homepage Opportunities query loop (queryId=17 in templates/home.html).
+ *
+ * The block UI can't express a meta_query, so we inject one here:
+ * hide expired posts the same way the archive does. We also force
+ * featured-first ordering so curated picks land at the top of the
+ * homepage section.
+ */
+add_filter( 'query_loop_block_query_vars', function ( $query, $block ) {
+    if ( ! isset( $block->context['queryId'] ) ) return $query;
+    if ( (int) $block->context['queryId'] !== 17 ) return $query;
+
+    $meta_query = isset( $query['meta_query'] ) && is_array( $query['meta_query'] )
+        ? $query['meta_query']
+        : [];
+
+    $meta_query[] = [
+        'relation' => 'OR',
+        [ 'key' => '_expired', 'compare' => 'NOT EXISTS' ],
+        [ 'key' => '_expired', 'value' => '1', 'compare' => '!=' ],
+    ];
+    $meta_query['featured_clause'] = [
+        'relation' => 'OR',
+        [ 'key' => '_featured', 'value' => '1', 'compare' => '=' ],
+        [ 'key' => '_featured', 'compare' => 'NOT EXISTS' ],
+    ];
+
+    $query['meta_query'] = $meta_query;
+    $query['orderby']    = [ 'featured_clause' => 'DESC', 'date' => 'DESC' ];
+
+    return $query;
+}, 10, 2 );
