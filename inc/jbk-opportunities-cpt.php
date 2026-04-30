@@ -715,3 +715,268 @@ add_filter( 'query_loop_block_query_vars', function ( $query, $block ) {
 
     return $query;
 }, 10, 2 );
+
+
+/**
+ * 13. Type-aware schema injection on single opportunity pages.
+ *
+ * Why: Rank Math's per-post `rank_math_rich_snippet` selector (we set this
+ * to "jobposting", "course", "event", "article" during the SEO backfill)
+ * tells Rank Math which schema TYPE to generate, but it ALSO needs the
+ * structured fields populated (hiringOrganization, jobLocation,
+ * validThrough, employmentType, etc.) — and those live in Rank Math's
+ * own `rank_math_snippet_jobposting_*` fields, which we don't fill. If
+ * those fields are empty, Rank Math silently skips JSON-LD generation
+ * for that schema type, and the opp page ends up shipping only a
+ * BreadcrumbList — useless for Google's Job/Course/Event rich results.
+ *
+ * Fix: we already collect the data needed (_organization, _location,
+ * _deadline, _apply_url, _value_usd, post_content excerpt). Build the
+ * JSON-LD ourselves from that meta and inject it into Rank Math's @graph
+ * via the `rank_math/json_ld` filter. One filter, all opp types.
+ *
+ * Schema map:
+ *   jobs                         → JobPosting
+ *   scholarships, fellowships,
+ *   grants, bootcamps            → Course
+ *   events, webinars             → Event (Online if webinar)
+ *   deals, telco-promos,
+ *   software, creators           → Article (Rank Math default — no override)
+ */
+add_filter( 'rank_math/json_ld', 'jbk_opportunity_inject_schema', 99, 2 );
+function jbk_opportunity_inject_schema( $data, $jsonld ) {
+    if ( ! is_singular( 'opportunity' ) ) {
+        return $data;
+    }
+
+    $post_id = get_queried_object_id();
+    if ( ! $post_id ) {
+        return $data;
+    }
+
+    // Determine opp type from taxonomy
+    $terms = get_the_terms( $post_id, 'opportunity_type' );
+    $type_slug = ( $terms && ! is_wp_error( $terms ) ) ? $terms[0]->slug : '';
+    if ( ! $type_slug ) {
+        return $data;
+    }
+
+    // Collect post + meta we'll use across schema types
+    $title         = wp_strip_all_tags( get_the_title( $post_id ) );
+    $url           = get_permalink( $post_id );
+    $thumb_url     = get_the_post_thumbnail_url( $post_id, 'large' );
+    $description   = get_post_meta( $post_id, 'rank_math_description', true );
+    if ( ! $description ) {
+        $description = wp_strip_all_tags( get_the_excerpt( $post_id ) );
+    }
+    $description   = mb_substr( $description, 0, 500 );
+    $date_posted   = get_the_date( 'c', $post_id );
+    $organization  = get_post_meta( $post_id, '_organization', true );
+    $location      = get_post_meta( $post_id, '_location', true );
+    $deadline      = get_post_meta( $post_id, '_deadline', true );
+    $apply_url     = get_post_meta( $post_id, '_apply_url', true );
+    $source_url    = get_post_meta( $post_id, '_source_url', true );
+    $value_usd     = get_post_meta( $post_id, '_value_usd', true );
+    $value_ghs     = get_post_meta( $post_id, '_value_ghs', true );
+    $expired       = get_post_meta( $post_id, '_expired', true ) === '1';
+
+    $body_text = wp_strip_all_tags( get_post_field( 'post_content', $post_id ) );
+    $haystack  = strtolower( $body_text . ' ' . $title . ' ' . $location );
+
+    $schema = null;
+
+    // ── JobPosting ──
+    if ( $type_slug === 'jobs' ) {
+        $schema = [
+            '@type'              => 'JobPosting',
+            'title'              => $title,
+            'description'        => $description,
+            'datePosted'         => $date_posted,
+            'hiringOrganization' => [
+                '@type' => 'Organization',
+                'name'  => $organization ?: 'JBKlutse',
+            ],
+        ];
+        if ( $apply_url ) {
+            $schema['url'] = $apply_url;
+        }
+        if ( $deadline ) {
+            $schema['validThrough'] = date( 'c', strtotime( $deadline ) );
+        }
+
+        // Employment type (best-effort from title + body)
+        $emp = 'OTHER';
+        if ( preg_match( '/\b(full[- ]?time|permanent|salary)\b/i', $haystack ) )      { $emp = 'FULL_TIME'; }
+        elseif ( preg_match( '/\bpart[- ]?time\b/i', $haystack ) )                     { $emp = 'PART_TIME'; }
+        elseif ( preg_match( '/\b(contract(or)?|freelance|consultan(t|cy))\b/i', $haystack ) ) { $emp = 'CONTRACTOR'; }
+        elseif ( preg_match( '/\bintern(ship)?\b/i', $haystack ) )                     { $emp = 'INTERN'; }
+        elseif ( preg_match( '/\btempor(ary|ar)\b/i', $haystack ) )                    { $emp = 'TEMPORARY'; }
+        $schema['employmentType'] = $emp;
+
+        // Remote vs onsite
+        $is_remote = (bool) preg_match( '/\bremote\b|\btelecommute\b|\bwork from home\b/i', $haystack );
+        if ( $is_remote ) {
+            $schema['jobLocationType']            = 'TELECOMMUTE';
+            $schema['applicantLocationRequirements'] = [
+                '@type' => 'Country',
+                'name'  => 'GH',
+            ];
+        } elseif ( $location ) {
+            $schema['jobLocation'] = [
+                '@type'   => 'Place',
+                'address' => [
+                    '@type'           => 'PostalAddress',
+                    'addressLocality' => $location,
+                    'addressCountry'  => 'GH',
+                ],
+            ];
+        } else {
+            // Fall back to country-only so Google doesn't reject the listing
+            $schema['jobLocation'] = [
+                '@type'   => 'Place',
+                'address' => [
+                    '@type'          => 'PostalAddress',
+                    'addressCountry' => 'GH',
+                ],
+            ];
+        }
+
+        // Salary (only when we know it concretely)
+        if ( $value_usd && (float) $value_usd > 0 ) {
+            $schema['baseSalary'] = [
+                '@type'    => 'MonetaryAmount',
+                'currency' => 'USD',
+                'value'    => [
+                    '@type'    => 'QuantitativeValue',
+                    'value'    => (float) $value_usd,
+                    'unitText' => 'YEAR',
+                ],
+            ];
+        } elseif ( $value_ghs && (float) $value_ghs > 0 ) {
+            $schema['baseSalary'] = [
+                '@type'    => 'MonetaryAmount',
+                'currency' => 'GHS',
+                'value'    => [
+                    '@type'    => 'QuantitativeValue',
+                    'value'    => (float) $value_ghs,
+                    'unitText' => 'YEAR',
+                ],
+            ];
+        }
+
+        // directApply: false signals applicants leave the site to apply
+        if ( $apply_url ) {
+            $schema['directApply'] = false;
+        }
+    }
+
+    // ── Course (scholarships, fellowships, grants, bootcamps) ──
+    elseif ( in_array( $type_slug, [ 'scholarships', 'fellowships', 'grants', 'bootcamps' ], true ) ) {
+        $schema = [
+            '@type'       => 'Course',
+            'name'        => $title,
+            'description' => $description,
+            'provider'    => [
+                '@type' => 'Organization',
+                'name'  => $organization ?: 'JBKlutse',
+                'sameAs' => $source_url ?: home_url(),
+            ],
+            'url'         => $url,
+        ];
+
+        // Course instance — required-recommended for Google's Course rich results
+        $instance = [
+            '@type'       => 'CourseInstance',
+            'courseMode'  => 'online',
+        ];
+        if ( $deadline ) {
+            // Treat deadline as the application deadline; instance starts after
+            $instance['startDate'] = date( 'c', strtotime( $deadline ) );
+        }
+        $schema['hasCourseInstance'] = $instance;
+
+        // Offer (free or value-bearing)
+        if ( $value_usd && (float) $value_usd > 0 ) {
+            $schema['offers'] = [
+                '@type'         => 'Offer',
+                'category'      => 'Funding',
+                'price'         => 0,
+                'priceCurrency' => 'USD',
+                'description'   => 'Award value: USD ' . number_format( (float) $value_usd ),
+            ];
+        } else {
+            $schema['offers'] = [
+                '@type'         => 'Offer',
+                'category'      => 'Free',
+                'price'         => 0,
+                'priceCurrency' => 'USD',
+            ];
+        }
+    }
+
+    // ── Event (events, webinars) ──
+    elseif ( in_array( $type_slug, [ 'events', 'webinars' ], true ) ) {
+        $schema = [
+            '@type'           => 'Event',
+            'name'            => $title,
+            'description'     => $description,
+            'eventStatus'     => 'https://schema.org/EventScheduled',
+            'organizer'       => [
+                '@type' => 'Organization',
+                'name'  => $organization ?: 'JBKlutse',
+            ],
+            'url'             => $url,
+        ];
+        if ( $deadline ) {
+            $schema['startDate'] = date( 'c', strtotime( $deadline ) );
+            $schema['endDate']   = date( 'c', strtotime( $deadline . ' +1 day' ) );
+        }
+        $is_webinar_or_remote = ( $type_slug === 'webinars' ) || (bool) preg_match( '/\bonline\b|\bvirtual\b|\bwebinar\b/i', $haystack );
+        if ( $is_webinar_or_remote ) {
+            $schema['eventAttendanceMode'] = 'https://schema.org/OnlineEventAttendanceMode';
+            $schema['location'] = [
+                '@type' => 'VirtualLocation',
+                'url'   => $apply_url ?: $url,
+            ];
+        } else {
+            $schema['eventAttendanceMode'] = 'https://schema.org/MixedEventAttendanceMode';
+            $schema['location'] = [
+                '@type'   => 'Place',
+                'name'    => $location ?: 'Ghana',
+                'address' => [
+                    '@type'          => 'PostalAddress',
+                    'addressLocality' => $location ?: 'Accra',
+                    'addressCountry' => 'GH',
+                ],
+            ];
+        }
+        // Free events are explicitly marked as such for SERP filtering
+        $schema['offers'] = [
+            '@type'         => 'Offer',
+            'price'         => 0,
+            'priceCurrency' => 'USD',
+            'availability'  => $expired ? 'https://schema.org/SoldOut' : 'https://schema.org/InStock',
+            'url'           => $apply_url ?: $url,
+            'validFrom'     => $date_posted,
+        ];
+    }
+
+    if ( ! $schema ) {
+        return $data;
+    }
+
+    // Common image attachment
+    if ( $thumb_url ) {
+        $schema['image'] = $thumb_url;
+    }
+
+    // Mark expired listings appropriately. JobPosting recommends keeping
+    // the listing live but using `validThrough` already set above; for
+    // Course/Event we surface it via offers.availability.
+    // Rank Math expects keys in the @graph array. Use a stable key so
+    // we replace ourselves cleanly on later filter passes.
+    $key = 'jbk_opportunity_' . $type_slug;
+    $data[ $key ] = $schema;
+
+    return $data;
+}
