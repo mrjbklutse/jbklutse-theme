@@ -291,6 +291,33 @@ function jbk_opportunity_register_rank_math_meta() {
         ],
         'auth_callback' => function () { return current_user_can( 'edit_posts' ); },
     ] );
+
+    // Schema Builder meta keys (Rank Math 1.0.268+). Each schema TYPE is
+    // stored under its own meta key (rank_math_schema_JobPosting,
+    // rank_math_schema_Course, rank_math_schema_Event, rank_math_schema_Article)
+    // as an associative array with type-specific fields + a `metadata`
+    // sub-array that drives the admin "Schema:" column display. Registered
+    // with type=object so REST accepts the structured JSON the drafter
+    // sends; WP auto-serializes to PHP-serialized format on write.
+    $schema_builder_keys = [
+        'rank_math_schema_JobPosting',
+        'rank_math_schema_Course',
+        'rank_math_schema_Event',
+        'rank_math_schema_Article',
+    ];
+    foreach ( $schema_builder_keys as $key ) {
+        register_post_meta( 'opportunity', $key, [
+            'type'          => 'object',
+            'single'        => true,
+            'show_in_rest'  => [
+                'schema' => [
+                    'type'                 => 'object',
+                    'additionalProperties' => true,
+                ],
+            ],
+            'auth_callback' => function () { return current_user_can( 'edit_posts' ); },
+        ] );
+    }
 }
 
 
@@ -970,11 +997,28 @@ function jbk_opportunity_inject_schema( $data, $jsonld ) {
         $schema['image'] = $thumb_url;
     }
 
-    // Mark expired listings appropriately. JobPosting recommends keeping
-    // the listing live but using `validThrough` already set above; for
-    // Course/Event we surface it via offers.availability.
-    // Rank Math expects keys in the @graph array. Use a stable key so
-    // we replace ourselves cleanly on later filter passes.
+    // Dedup: when a Schema Builder meta entry (rank_math_schema_<Type>)
+    // also exists on this post, Rank Math will already have added a node
+    // of the same @type to $data. Remove any such pre-existing nodes so
+    // there's exactly one @type=JobPosting/Course/Event in the @graph and
+    // it's our richer version (with employmentType detection, jobLocation
+    // fallbacks, applicantLocationRequirements for remote, salary, etc.).
+    $expected_type = $schema['@type'];
+    foreach ( $data as $existing_key => $existing_node ) {
+        if ( ! is_array( $existing_node ) ) {
+            continue;
+        }
+        $node_type = $existing_node['@type'] ?? '';
+        if ( is_array( $node_type ) ) {
+            $node_type = reset( $node_type );
+        }
+        if ( $node_type === $expected_type ) {
+            unset( $data[ $existing_key ] );
+        }
+    }
+
+    // Use a stable key so we replace ourselves cleanly on later filter
+    // passes.
     $key = 'jbk_opportunity_' . $type_slug;
     $data[ $key ] = $schema;
 
