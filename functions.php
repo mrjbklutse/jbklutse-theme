@@ -401,6 +401,66 @@ function jbklutse_press_release_disclosure( $content ) {
 add_filter( 'the_content', 'jbklutse_press_release_disclosure' );
 
 /**
+ * Move "Photo:/Image:/Source:" credit lines from the TOP of an article
+ * to the BOTTOM. We want the first thing readers (and AdSense, and the
+ * TOC injector) see to be the real opening paragraph, not a one-line
+ * credit link that pushes everything else down.
+ *
+ * Runs at priority 1 — before the TOC (5), press-release disclosure (10),
+ * and ad placements (99) — so all downstream filters see the article
+ * with credit already moved.
+ */
+function jbklutse_move_photo_credit_to_bottom( $content ) {
+	if ( ! is_singular( 'post' ) || is_admin() ) {
+		return $content;
+	}
+	$post_id = get_the_ID();
+	if ( ! $post_id || $post_id !== get_queried_object_id() ) {
+		return $content;
+	}
+
+	// Match the very first <p>...</p> at the start of the content
+	// (allowing leading whitespace). Capture the inner HTML separately
+	// so we can inspect just the visible text.
+	if ( ! preg_match( '#^\s*<p\b[^>]*>(.*?)</p>\s*#is', $content, $m ) ) {
+		return $content;
+	}
+
+	$inner_html  = $m[1];
+	$visible     = trim( wp_strip_all_tags( $inner_html ) );
+	if ( $visible === '' ) {
+		return $content;
+	}
+
+	// Trigger if the paragraph starts with a known credit prefix.
+	// Keep it tight to avoid false positives on real opening paragraphs
+	// (e.g. an article that genuinely opens with "Photo journalism in Ghana...").
+	$is_credit = (bool) preg_match(
+		'/^(photo|image|picture|photograph|cover image|featured image|source|credit)\s*(credit|by|:|\/)/i',
+		$visible
+	);
+
+	// Sanity cap: real opening paragraphs are usually >120 chars. A "Photo:"
+	// line is short. Anything over 200 chars is almost certainly a real
+	// paragraph that happens to start with the trigger word.
+	if ( ! $is_credit || mb_strlen( $visible ) > 200 ) {
+		return $content;
+	}
+
+	// Strip the credit paragraph from the top.
+	$content = preg_replace( '#^\s*<p\b[^>]*>.*?</p>\s*#is', '', $content, 1 );
+
+	// Append it to the bottom inside a styled wrapper.
+	$credit = '<p class="jbk-photo-credit" style="margin-top:2rem;padding-top:1rem;border-top:1px solid var(--wp--preset--color--border);font-size:0.8125rem;color:var(--wp--preset--color--muted);font-style:italic;">'
+		. $inner_html
+		. '</p>';
+
+	return $content . $credit;
+}
+add_filter( 'the_content', 'jbklutse_move_photo_credit_to_bottom', 1 );
+
+
+/**
  * Auto-generate Table of Contents for posts with 3+ headings
  * Replaces Easy Table of Contents plugin
  */
