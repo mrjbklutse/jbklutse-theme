@@ -422,6 +422,19 @@ input:focus-visible {
 	}
 }
 
+/* --- Footer body text contrast lock ---
+   Inline color:#fff on the footer paragraph wasn't winning for some
+   users (likely a stacked has-text-color cascade or theme.json output).
+   Force it with a high-specificity !important rule. */
+footer p,
+footer .wp-block-navigation a,
+footer .wp-block-navigation-item__label {
+	color: #ffffff !important;
+}
+footer .wp-block-heading {
+	color: #ffffff !important;
+}
+
 /* --- Print styles --- */
 @media print {
 	header,
