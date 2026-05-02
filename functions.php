@@ -120,6 +120,108 @@ function jbklutse_dedupe_title_tags( $html ) {
 }
 
 /**
+ * Clean up old/noisy URLs that are appearing in Search Console noindex samples.
+ *
+ * - 410 Gone for the legacy /404-error/ namespace (so Google removes them).
+ * - 301 redirect renamed pages to their current slugs.
+ * - 301 redirect /category/<slug>/ to /topics/<slug>/ (one canonical archive).
+ * - Strip tracking junk from query strings (utm_*, fbclid, gclid, ref, etc.)
+ *   so Search Console stops indexing crawler-created variants.
+ *
+ * Runs at template_redirect priority -20 — early enough to short-circuit
+ * before WordPress queries the database, but after rewrite resolution.
+ */
+function jbklutse_seo_url_hygiene_redirects() {
+	if ( is_admin() || wp_doing_ajax() || wp_is_json_request() ) {
+		return;
+	}
+
+	$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
+	if ( '' === $request_uri ) {
+		return;
+	}
+
+	$parts = wp_parse_url( $request_uri );
+	$path  = isset( $parts['path'] ) ? rawurldecode( $parts['path'] ) : '/';
+	$path  = '/' . ltrim( $path, '/' );
+	$clean = trailingslashit( strtok( $path, '?' ) );
+
+	if ( 0 === strpos( $clean, '/404-error/' ) ) {
+		status_header( 410 );
+		nocache_headers();
+		header( 'Content-Type: text/plain; charset=utf-8' );
+		echo 'Gone';
+		exit;
+	}
+
+	$renamed_pages = array(
+		'/contact-us/'           => '/contact/',
+		'/privacy-policy/'       => '/privacy/',
+		'/terms-and-conditions/' => '/terms/',
+		'/advertise-with-us/'    => '/advertisement/',
+	);
+
+	if ( isset( $renamed_pages[ $clean ] ) ) {
+		wp_safe_redirect( home_url( $renamed_pages[ $clean ] ), 301 );
+		exit;
+	}
+
+	if ( preg_match( '#^/category/([^/]+)/#', $clean, $matches ) ) {
+		$category = get_category_by_slug( sanitize_title( $matches[1] ) );
+		if ( $category && ! is_wp_error( $category ) ) {
+			wp_safe_redirect( home_url( '/topics/' . $category->slug . '/' ), 301 );
+			exit;
+		}
+	}
+
+	jbklutse_strip_junk_query_args( $path, isset( $parts['query'] ) ? $parts['query'] : '' );
+}
+add_action( 'template_redirect', 'jbklutse_seo_url_hygiene_redirects', -20 );
+
+/**
+ * Canonicalize crawler-created URL variants without touching functional params.
+ */
+function jbklutse_strip_junk_query_args( $path, $query_string ) {
+	if ( '' === $query_string ) {
+		return;
+	}
+
+	wp_parse_str( $query_string, $query_args );
+	if ( empty( $query_args ) || ! is_array( $query_args ) ) {
+		return;
+	}
+
+	$junk_keys = array(
+		'fbclid',
+		'gclid',
+		'lang',
+		'offset',
+		'pr',
+		'ref',
+		'token',
+	);
+
+	$clean_args = $query_args;
+	foreach ( array_keys( $clean_args ) as $key ) {
+		if ( 0 === strpos( $key, 'utm_' ) || in_array( $key, $junk_keys, true ) ) {
+			unset( $clean_args[ $key ] );
+		}
+	}
+
+	if ( $clean_args === $query_args ) {
+		return;
+	}
+
+	$target = home_url( $path );
+	if ( ! empty( $clean_args ) ) {
+		$target = add_query_arg( $clean_args, $target );
+	}
+
+	wp_safe_redirect( $target, 301 );
+	exit;
+}
+
+/**
  * Register block patterns
  */
 function jbklutse_register_patterns() {
